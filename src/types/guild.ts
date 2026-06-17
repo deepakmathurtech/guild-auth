@@ -1,4 +1,4 @@
-export type GuildRole = 'member' | 'contributor' | 'receptionist' | 'guildManager' | 'guildAdmin' | 'founder';
+export type GuildRole = 'applicant' | 'member' | 'contributor' | 'receptionist' | 'cityGuildMaster' | 'stateGuildMaster' | 'centralGuildMaster' | 'guildFounder';
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
 export type ArchiveStatus = 'active' | 'archived';
 export type OrganizationStatus = 'new' | 'contacted' | 'active' | 'partner' | 'inactive';
@@ -7,6 +7,15 @@ export type NeedStatus = 'open' | 'matching' | 'assigned' | 'inProgress' | 'comp
 export type OpportunityStatus = 'draft' | 'open' | 'matching' | 'assigned' | 'inProgress' | 'completed' | 'archived';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface Jurisdiction {
+  countryId: string;
+  countryName: string;
+  stateId: string;
+  stateName: string;
+  cityId: string;
+  cityName: string;
+}
 
 export type LedgerCollection =
   | 'users'
@@ -21,7 +30,10 @@ export type LedgerCollection =
   | 'knowledgeBase'
   | 'notifications'
   | 'interactions'
-  | 'rankReviews';
+  | 'rankReviews'
+  | 'guildRegions'
+  | 'guildStates'
+  | 'guildCities';
 
 export interface AuditFields {
   createdBy: string;
@@ -29,6 +41,7 @@ export interface AuditFields {
   updatedAt: string;
   responsibleReceptionist?: string;
   archiveStatus: ArchiveStatus;
+  jurisdiction: Jurisdiction;
 }
 
 export interface GuildUser extends AuditFields {

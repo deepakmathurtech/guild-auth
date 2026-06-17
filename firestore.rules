@@ -3,43 +3,73 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
-    function role() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? userDoc().data.role : 'member'; }
-    function isAdmin() { return signedIn() && (request.auth.token.guildAdmin == true || role() == 'guildAdmin'); }
-    function isManager() { return isAdmin() || role() == 'guildManager'; }
-    function isReceptionist() { return isManager() || role() == 'receptionist'; }
-    function isContributor() { return isReceptionist() || role() == 'contributor'; }
+    function role() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? userDoc().data.role : 'applicant'; }
+    
+    // Jurisdiction Helpers
+    function myJuris() { return userDoc().data.jurisdiction; }
+    function targetJuris() { return resource.data.jurisdiction; }
+    function incomingJuris() { return request.resource.data.jurisdiction; }
+    
+    function isFounder() { return signedIn() && role() == 'guildFounder'; }
+    function isCentralMaster() { return isFounder() || role() == 'centralGuildMaster'; }
+    
+    function isStateMaster() { 
+      return isCentralMaster() || (role() == 'stateGuildMaster' && targetJuris().stateId == myJuris().stateId); 
+    }
+    
+    function isCityMaster() {
+      return isStateMaster() || (role() == 'cityGuildMaster' && targetJuris().cityId == myJuris().cityId);
+    }
+    
+    function isReceptionist() {
+      return isCityMaster() || (role() == 'receptionist' && targetJuris().cityId == myJuris().cityId);
+    }
+
+    function canWriteJuris(data) {
+      return isFounder() || (
+        data.jurisdiction.countryId == myJuris().countryId &&
+        (role() == 'centralGuildMaster' || (
+          data.jurisdiction.stateId == myJuris().stateId && (
+            role() == 'stateGuildMaster' || (
+              data.jurisdiction.cityId == myJuris().cityId && (role() == 'cityGuildMaster' || role() == 'receptionist')
+            )
+          )
+        ))
+      );
+    }
+
     function owns(uid) { return signedIn() && request.auth.uid == uid; }
-    function isPermanentLedgerWrite() { return !('archiveStatus' in resource.data) || request.resource.data.archiveStatus in ['active', 'archived']; }
     function noPermanentDelete() { return false; }
 
     match /users/{userId} {
-      allow read: if signedIn() && (owns(userId) || isReceptionist());
-      allow create: if owns(userId) && request.resource.data.role in ['member', 'contributor', 'receptionist'];
-      allow update: if signedIn() && (owns(userId) || isAdmin()) && (!('role' in request.resource.data) || isAdmin() || request.resource.data.role == resource.data.role);
+      allow read: if signedIn();
+      allow create: if owns(userId);
+      allow update: if owns(userId) || isCityMaster(); 
       allow delete: if noPermanentDelete();
     }
 
     match /organizations/{id} {
       allow read: if signedIn();
-      allow create, update: if isReceptionist();
+      allow create: if signedIn() && canWriteJuris(request.resource.data);
+      allow update: if signedIn() && canWriteJuris(resource.data);
       allow delete: if noPermanentDelete();
     }
 
     match /needs/{id} {
       allow read: if signedIn();
-      allow create, update: if isReceptionist();
+      allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
       allow delete: if noPermanentDelete();
     }
 
     match /opportunities/{id} {
       allow read: if signedIn();
-      allow create, update: if isReceptionist() || (signedIn() && request.resource.data.applicants.hasAny([request.auth.uid]));
+      allow create, update: if signedIn() && (canWriteJuris(request.resource.data || resource.data) || incomingJuris().applicants.hasAny([request.auth.uid]));
       allow delete: if noPermanentDelete();
     }
 
     match /quests/{id} {
       allow read: if signedIn();
-      allow create, update: if isReceptionist();
+      allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
       allow delete: if noPermanentDelete();
     }
 
@@ -52,13 +82,13 @@ service cloud.firestore {
 
     match /outcomes/{id} {
       allow read: if signedIn();
-      allow create, update: if isReceptionist();
+      allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
       allow delete: if noPermanentDelete();
     }
 
     match /verifications/{id} {
       allow read: if signedIn();
-      allow create, update: if isReceptionist();
+      allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
       allow delete: if noPermanentDelete();
     }
 
@@ -70,13 +100,13 @@ service cloud.firestore {
 
     match /knowledgeBase/{id} {
       allow read: if signedIn();
-      allow create: if isContributor();
+      allow create: if role() in ['member', 'contributor', 'receptionist'];
       allow update: if isReceptionist();
       allow delete: if noPermanentDelete();
     }
 
     match /activityLogs/{id} {
-      allow read: if isManager();
+      allow read: if isCityMaster();
       allow create: if signedIn();
       allow update, delete: if false;
     }
@@ -87,9 +117,19 @@ service cloud.firestore {
       allow delete: if noPermanentDelete();
     }
 
-    match /guildConfig/{id} {
+    match /guildRegions/{id} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if isFounder();
+    }
+
+    match /guildStates/{id} {
+      allow read: if signedIn();
+      allow write: if isCentralMaster();
+    }
+
+    match /guildCities/{id} {
+      allow read: if signedIn();
+      allow write: if isStateMaster();
     }
   }
 }

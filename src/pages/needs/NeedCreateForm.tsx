@@ -21,14 +21,18 @@ export function NeedCreateForm({ initialOrgId = '', initialOrgName = '', onSucce
     organizationId: initialOrgId,
     organizationName: initialOrgName,
     location: '',
-    city: '',
+    city: profile?.jurisdiction.cityName || '',
     estimatedValue: 0
   });
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    listRecords('organizations', [where('archiveStatus', '==', 'active')]).then(setOrganizations);
-  }, []);
+    if (!profile) return;
+    listRecords('organizations', [
+      where('jurisdiction.cityId', '==', profile.jurisdiction.cityId),
+      where('archiveStatus', '==', 'active')
+    ]).then(setOrganizations);
+  }, [profile]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +43,8 @@ export function NeedCreateForm({ initialOrgId = '', initialOrgName = '', onSucce
       await createLedgerRecord('needs', {
         ...form,
         organizationName: orgName,
-        status: 'open'
+        status: 'open',
+        jurisdiction: profile.jurisdiction
       }, profile, 'Need Created');
       setStatus('');
       onSuccess();

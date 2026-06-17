@@ -10,18 +10,18 @@ import { GlobalSearch } from './GlobalSearch';
 import { useState } from 'react';
 
 const nav = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['member', 'contributor', 'receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/organizations', label: 'Organizations', icon: BriefcaseBusiness, roles: ['receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/needs', label: 'Needs', icon: Flag, roles: ['receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/opportunities', label: 'Opportunities', icon: Sparkles, roles: ['member', 'contributor', 'receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/quests', label: 'Quests', icon: ClipboardCheck, roles: ['member', 'contributor', 'receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/submissions', label: 'Submissions', icon: ClipboardCheck, roles: ['member', 'contributor', 'receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/outcomes', label: 'Outcomes', icon: Shield, roles: ['receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/revenue', label: 'Revenue', icon: BriefcaseBusiness, roles: ['receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/verification', label: 'Verification', icon: Shield, roles: ['receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/ledger', label: 'Ledger', icon: Database, roles: ['guildManager', 'guildAdmin'] },
-  { to: '/knowledge', label: 'Knowledge', icon: BookOpen, roles: ['member', 'contributor', 'receptionist', 'guildManager', 'guildAdmin'] },
-  { to: '/admin', label: 'Admin', icon: UsersRound, roles: ['guildAdmin'] }
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['applicant', 'member', 'contributor', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/organizations', label: 'Organizations', icon: BriefcaseBusiness, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/needs', label: 'Needs', icon: Flag, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/opportunities', label: 'Opportunities', icon: Sparkles, roles: ['member', 'contributor', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/quests', label: 'Quests', icon: ClipboardCheck, roles: ['member', 'contributor', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/submissions', label: 'Submissions', icon: ClipboardCheck, roles: ['member', 'contributor', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/outcomes', label: 'Outcomes', icon: Shield, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/revenue', label: 'Revenue', icon: BriefcaseBusiness, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/verification', label: 'Verification', icon: Shield, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/ledger', label: 'Ledger', icon: Database, roles: ['cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/knowledge', label: 'Knowledge', icon: BookOpen, roles: ['member', 'contributor', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder'] },
+  { to: '/admin', label: 'Admin', icon: UsersRound, roles: ['centralGuildMaster', 'guildFounder'] }
 ] as const;
 
 export function AppShell() {
@@ -39,7 +39,7 @@ export function AppShell() {
     navigate('/login');
   }
 
-  const allowedNav = nav.filter((item) => hasRole(profile?.role, [...item.roles]));
+  const allowedNav = nav.filter((item) => hasRole(profile?.role, [...item.roles] as any));
 
   return (
     <div className="shell">
@@ -50,8 +50,8 @@ export function AppShell() {
         <div className="brand">
           <span className="brand-mark">G</span>
           <div>
-            <strong className="block leading-tight text-lg">Guild OS</strong>
-            <small className="text-[var(--muted)] font-bold uppercase text-[10px] tracking-tighter">Human Network Ledger</small>
+            <strong className="block leading-tight text-lg">Guild Federation</strong>
+            <small className="text-[var(--muted)] font-bold uppercase text-[10px] tracking-tighter">Human Network Operating System</small>
           </div>
         </div>
         <nav>
@@ -68,7 +68,7 @@ export function AppShell() {
            <div className="flex justify-between items-center mb-10">
               <div className="flex gap-4 items-center">
                 <span className="brand-mark">G</span>
-                <strong>Guild OS</strong>
+                <strong>Guild Federation</strong>
               </div>
               <button className="ghost p-2" onClick={() => setIsMobileMenuOpen(false)}><X size={24}/></button>
            </div>
@@ -92,8 +92,8 @@ export function AppShell() {
       <main className="main">
         <header className="topbar">
           <div className="hidden md:block">
-            <p className="eyebrow">Operational Readiness: High &middot; {profile?.role}</p>
-            <h1>{profile?.city ? `${profile.city} Command` : 'Command'}</h1>
+            <p className="eyebrow">Federation Operational Integrity: High</p>
+            <h1>{profile?.jurisdiction.cityName ? `${profile.jurisdiction.cityName} Command` : 'National Command'}</h1>
           </div>
           
           <div className="md:hidden flex items-center justify-between w-full">

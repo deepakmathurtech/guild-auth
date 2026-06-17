@@ -16,7 +16,7 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
     contactPerson: '',
     phone: '',
     email: '',
-    city: '',
+    city: profile?.jurisdiction.cityName || '',
     address: '',
     description: ''
   });
@@ -33,7 +33,8 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
         opportunities: [],
         currentStatus: 'new',
         trustLevel: 'new',
-        relationshipNotes: ''
+        relationshipNotes: '',
+        jurisdiction: profile.jurisdiction
       }, profile, 'Organization Created');
       setStatus('');
       onSuccess();

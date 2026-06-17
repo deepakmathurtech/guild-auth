@@ -5,10 +5,12 @@ import { limit, orderBy, where } from 'firebase/firestore';
 import { subscribeRecords } from '../../lib/repository';
 import type { Opportunity } from '../../types/guild';
 import { OpportunityCreateForm } from './OpportunityCreateForm';
+import { useAuth } from '../../context/AuthContext';
 
 export function OpportunityListPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile } = useAuth();
   
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [showCreate, setShowCreate] = useState(location.state?.needId ? true : false);
@@ -16,12 +18,22 @@ export function OpportunityListPage() {
   const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
+    if (!profile) return;
+    const base = [where('archiveStatus', '==', 'active')];
+    if (['guildFounder', 'centralGuildMaster'].includes(profile.role)) {
+       // National see all
+    } else if (profile.role === 'stateGuildMaster') {
+       base.push(where('jurisdiction.stateId', '==', profile.jurisdiction.stateId));
+    } else {
+       base.push(where('jurisdiction.cityId', '==', profile.jurisdiction.cityId));
+    }
+
     return subscribeRecords('opportunities', setOpportunities, [
-      where('archiveStatus', '==', 'active'),
+      ...base,
       orderBy('updatedAt', 'desc'),
       limit(200)
     ]);
-  }, []);
+  }, [profile]);
 
   const visible = useMemo(() => {
     return opportunities.filter(opp => {
@@ -52,7 +64,7 @@ export function OpportunityListPage() {
       )}
 
       <div className="panel">
-        <div className="flex space-x-4 mb-4">
+        <div className="flex flex-col md:flex-row gap-4 mb-4">
           <input className="search flex-1" placeholder="Search title or organization..." value={search} onChange={e => setSearch(e.target.value)} />
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">All Statuses</option>
@@ -68,17 +80,21 @@ export function OpportunityListPage() {
             <tbody>
               {visible.map(opp => (
                 <tr key={opp.id}>
-                  <td><strong>{opp.title}</strong></td>
-                  <td>{opp.category}</td>
-                  <td>{opp.assignedMembers?.length || 0} Members</td>
-                  <td><StatusBadge status={opp.status} /></td>
-                  <td>?{opp.estimatedRevenue}</td>
+                  <td data-label="Title"><strong>{opp.title}</strong></td>
+                  <td data-label="Category">{opp.category}</td>
+                  <td data-label="Assigned">{opp.assignedMembers?.length || 0} Members</td>
+                  <td data-label="Status"><StatusBadge status={opp.status} /></td>
+                  <td data-label="Value">₹{opp.estimatedRevenue.toLocaleString()}</td>
                   <td>
-                    <button className="ghost" onClick={() => navigate(`/opportunities/${opp.id}`)}>Manage</button>
+                    <button className="primary text-[10px] px-3 py-1.5" onClick={() => navigate(`/opportunities/${opp.id}`)}>Manage</button>
                   </td>
                 </tr>
               ))}
-              {visible.length === 0 && <tr><td colSpan={6}>No opportunities match your criteria.</td></tr>}
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="text-center py-10 text-slate-400 font-medium italic">No opportunities match your criteria.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -47,7 +47,8 @@ export function OpportunityCreateForm({ initialData = {}, onSuccess, onCancel }:
           ...oppData,
           applicants: [],
           assignedMembers: [],
-          assignedReceptionist: profile.uid
+          assignedReceptionist: profile.uid,
+          jurisdiction: profile.jurisdiction
         }, profile, 'Opportunity Created');
       }
 

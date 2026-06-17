@@ -67,7 +67,7 @@ export function OrganizationDetailsPage() {
         </div>
         <div className="flex gap-2 w-full md:w-auto">
           <button className="primary flex-1 md:flex-none" onClick={() => setIsLoggingInteraction(true)}><Plus size={18}/> Log Interaction</button>
-          {profile?.role === 'guildAdmin' && (
+          {profile?.role === 'guildFounder' && (
             <button className="ghost flex-1 md:flex-none" onClick={() => setIsTransferringOwnership(!isTransferringOwnership)}><ArrowLeftRight size={18}/> Transfer</button>
           )}
         </div>

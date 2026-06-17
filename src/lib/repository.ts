@@ -65,20 +65,24 @@ export const ledgerCollections: LedgerCollection[] = [
   'knowledgeBase',
   'notifications',
   'interactions',
-  'rankReviews'
+  'rankReviews',
+  'guildRegions',
+  'guildStates',
+  'guildCities'
 ];
 
 export function nowIso() {
   return new Date().toISOString();
 }
 
-export function auditFields(userId: string, responsibleReceptionist?: string): AuditFields {
+export function auditFields(actor: GuildUser, responsibleReceptionist?: string): AuditFields {
   return {
-    createdBy: userId,
+    createdBy: actor.uid,
     createdAt: nowIso(),
     updatedAt: nowIso(),
-    responsibleReceptionist: responsibleReceptionist || userId,
-    archiveStatus: 'active'
+    responsibleReceptionist: responsibleReceptionist || actor.uid,
+    archiveStatus: 'active',
+    jurisdiction: actor.jurisdiction
   };
 }
 
@@ -114,7 +118,7 @@ export async function createLedgerRecord<K extends keyof EntityMap>(
   const ref = doc(collection(db, collectionName));
   const record = {
     ...data,
-    ...auditFields(actor.uid, data.responsibleReceptionist || actor.uid),
+    ...auditFields(actor, data.responsibleReceptionist || actor.uid),
     id: ref.id,
     ownerId: (data as any).ownerId || actor.uid,
     createdAtServer: serverTimestamp()

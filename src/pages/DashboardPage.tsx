@@ -6,8 +6,6 @@ import type { ActivityLog, DashboardMetric, Need, Opportunity, Organization, Que
 import { hasRole } from '../lib/rbac';
 import { MemberDashboard } from '../components/dashboards/MemberDashboard';
 import { ReceptionistDashboard } from '../components/dashboards/ReceptionistDashboard';
-import { ManagerDashboard } from '../components/dashboards/ManagerDashboard';
-import { AdminDashboard } from '../components/dashboards/AdminDashboard';
 import { FounderDashboard } from '../components/dashboards/FounderDashboard';
 
 function useCollection<T>(name: string, constraints: any[] = []) {
@@ -21,57 +19,65 @@ function useCollection<T>(name: string, constraints: any[] = []) {
   return items;
 }
 
-// Custom role dashboards are imported.
-
 export function DashboardPage() {
   const { profile } = useAuth();
-  const organizations = useCollection<Organization>('organizations', [where('archiveStatus', '==', 'active'), limit(200)]);
-  const needs = useCollection<Need>('needs', [where('archiveStatus', '==', 'active'), limit(200)]);
-  const opportunities = useCollection<Opportunity>('opportunities', [where('archiveStatus', '==', 'active'), limit(200)]);
-  const submissions = useCollection<QuestSubmission>('questSubmissions', [where('archiveStatus', '==', 'active'), limit(200)]);
-  const quests = useCollection<Quest>('quests', [where('archiveStatus', '==', 'active'), limit(200)]);
-  const outcomes = useCollection<Outcome>('outcomes', [where('archiveStatus', '==', 'active'), limit(200)]);
-  const revenue = useCollection<RevenueEvent>('revenueEvents', [where('archiveStatus', '==', 'active'), limit(200)]);
-  const verifications = useCollection<VerificationRecord>('verifications', [where('archiveStatus', '==', 'active'), limit(200)]);
+  
+  // Jurisdiction Filters
+  const jurisConstraints = useMemo(() => {
+    if (!profile) return [];
+    const base = [where('archiveStatus', '==', 'active')];
+    
+    if (profile.role === 'guildFounder' || profile.role === 'centralGuildMaster') return base;
+    
+    if (profile.role === 'stateGuildMaster') {
+      return [...base, where('jurisdiction.stateId', '==', profile.jurisdiction.stateId)];
+    }
+    
+    // Default: City scope
+    return [...base, where('jurisdiction.cityId', '==', profile.jurisdiction.cityId)];
+  }, [profile]);
+
+  const organizations = useCollection<Organization>('organizations', [...jurisConstraints, limit(200)]);
+  const needs = useCollection<Need>('needs', [...jurisConstraints, limit(200)]);
+  const opportunities = useCollection<Opportunity>('opportunities', [...jurisConstraints, limit(200)]);
+  const submissions = useCollection<QuestSubmission>('questSubmissions', [...jurisConstraints, limit(200)]);
+  const quests = useCollection<Quest>('quests', [...jurisConstraints, limit(200)]);
+  const outcomes = useCollection<Outcome>('outcomes', [...jurisConstraints, limit(200)]);
+  const revenue = useCollection<RevenueEvent>('revenueEvents', [...jurisConstraints, limit(200)]);
+  const verifications = useCollection<VerificationRecord>('verifications', [...jurisConstraints, limit(200)]);
   const logs = useCollection<ActivityLog>('activityLogs', [orderBy('time', 'desc'), limit(10)]);
 
   const metrics = useMemo<DashboardMetric[]>(() => {
-    const assignedOrgs = organizations.filter((item) => item.responsibleReceptionist === profile?.uid);
+    if (!profile) return [];
     const activeNeeds = needs.filter((item) => ['open', 'matching', 'assigned', 'inProgress'].includes(item.status));
     const activeOpps = opportunities.filter((item) => ['open', 'matching', 'assigned', 'inProgress'].includes(item.status));
     const pending = submissions.filter((item) => item.status === 'pending').length + verifications.filter((item) => item.decision === 'pending').length;
     const totalRevenue = revenue.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    
     return [
-      { label: 'Assigned Organizations', value: hasRole(profile?.role, ['guildManager', 'guildAdmin']) ? organizations.length : assignedOrgs.length },
+      { label: 'Organizations', value: organizations.length },
       { label: 'Active Needs', value: activeNeeds.length },
       { label: 'Active Opportunities', value: activeOpps.length },
       { label: 'Pending Verifications', value: pending },
       { label: 'Revenue Tracked', value: `₹${totalRevenue.toLocaleString('en-IN')}` },
       { label: 'Members Helped', value: new Set(opportunities.flatMap((item) => item.assignedMembers || [])).size }
     ];
-  }, [organizations, needs, opportunities, submissions, verifications, revenue, profile?.role, profile?.uid]);
+  }, [organizations, needs, opportunities, submissions, verifications, revenue, profile]);
 
-  const props = { organizations, needs, opportunities, quests, submissions, outcomes, revenue, verifications, logs };
+  const props = { organizations, needs, opportunities, quests, submissions, outcomes, revenue, verifications, logs, metrics };
 
-  if (!profile) return <p>Loading...</p>;
+  if (!profile) return <p className="p-10 text-center font-bold">Synchronizing Federation Access...</p>;
 
-  // Route to the specific dashboard based on role
-  if (profile.role === 'member' || profile.role === 'contributor') {
-    return <MemberDashboard {...props} />;
+  // 1. National Level
+  if (profile.role === 'guildFounder' || profile.role === 'centralGuildMaster') {
+    return <FounderDashboard />;
   }
   
-  if (profile.role === 'receptionist') {
+  // 2. State & City Level (ReceptionistDashboard can handle both with correct scoping)
+  if (['stateGuildMaster', 'cityGuildMaster', 'receptionist'].includes(profile.role)) {
     return <ReceptionistDashboard {...props} />;
   }
 
-  if (profile.role === 'guildManager') {
-    return <ManagerDashboard metrics={metrics} {...props} />;
-  }
-
-  if (profile.role === 'founder') {
-    return <FounderDashboard />;
-  }
-
-  // Fallback for guildAdmin and others
-  return <AdminDashboard metrics={metrics} {...props} />;
+  // 3. Member Level
+  return <MemberDashboard {...props} />;
 }

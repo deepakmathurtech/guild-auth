@@ -1,7 +1,9 @@
 import { createLedgerRecord, updateLedgerRecord, getRecord, listRecords, logActivity } from '../lib/repository';
-import type { GuildUser, Need, Opportunity, Quest, QuestSubmission } from '../types/guild';
+import type { GuildUser, Need, Opportunity, Quest, QuestSubmission, GuildRole } from '../types/guild';
 import { db } from '../lib/firebase';
 import { doc, getDoc, updateDoc, increment, collection, query, getDocs, where, runTransaction } from 'firebase/firestore';
+import { getStateByName, getCityCode } from '../lib/jurisdiction';
+import { roleWeight } from '../lib/rbac';
 
 /**
  * workflowService.ts
@@ -30,7 +32,8 @@ export async function convertNeedToOpportunity(
     status: 'draft',
     applicants: [],
     assignedMembers: [],
-    assignedReceptionist: profile.uid
+    assignedReceptionist: profile.uid,
+    jurisdiction: profile.jurisdiction
   }, profile, 'Opportunity Created from Need');
 
   // Update Need Status
@@ -41,7 +44,11 @@ export async function convertNeedToOpportunity(
   return opp;
 }
 
-export async function generateGuildQuestId(city: string = 'LDH', category: string = 'TECH'): Promise<string> {
+export async function generateGuildQuestId(
+  city: string = 'LDH', 
+  category: string = 'TECH',
+  stateName: string = 'Punjab'
+): Promise<string> {
   const counterRef = doc(db, 'system', 'counters');
   
   return await runTransaction(db, async (transaction) => {
@@ -57,7 +64,9 @@ export async function generateGuildQuestId(city: string = 'LDH', category: strin
     
     const year = new Date().getFullYear();
     const sequence = currentNumber.toString().padStart(4, '0');
-    return `GQ-${year}-${city}-${category.toUpperCase().substring(0, 4)}-${sequence}`;
+    const stateCode = getStateByName(stateName)?.code || 'IN';
+    const cityCode = getCityCode(city);
+    return `GQ-${year}-${stateCode}-${cityCode}-${category.toUpperCase().substring(0, 4)}-${sequence}`;
   });
 }
 
@@ -71,6 +80,12 @@ export async function spawnQuestForOpportunity(
   if ((questData.paymentAmount || 0) < 0 || (questData.estimatedValue || 0) < 0) {
     throw new Error('Financial values cannot be negative.');
   }
+
+  const questId = await generateGuildQuestId(
+    profile.jurisdiction.cityName, 
+    opportunity.category || 'GEN',
+    profile.jurisdiction.stateName
+  );
 
   const quest = await createLedgerRecord('quests', {
     ...questData,
@@ -87,7 +102,7 @@ export async function spawnQuestForOpportunity(
     verificationMethod: questData.verificationMethod || 'manualReview',
     reputationPoints: questData.reputationPoints || 10,
     isMandatory: questData.isMandatory !== undefined ? questData.isMandatory : true,
-    guildQuestId: await generateGuildQuestId('LDH', opportunity.category || 'GEN'),
+    guildQuestId: questId,
     status: 'open',
     assignedMembers: [],
     applicants: []
@@ -140,7 +155,6 @@ export async function assignMemberToQuest(
 }
 
 // 3. Complete Opportunity Check
-// FUTURE: Move to Cloud Function (Triggered when Quest changes to 'completed')
 export async function checkOpportunityCompletion(opportunityId: string, profile: GuildUser) {
   if (!opportunityId) return;
   
@@ -152,30 +166,26 @@ export async function checkOpportunityCompletion(opportunityId: string, profile:
     where('archiveStatus', '==', 'active')
   ]);
 
-  // If no mandatory quests, or all mandatory quests are completed
   const mandatoryQuests = quests.filter(q => q.isMandatory);
   const allMandatoryCompleted = mandatoryQuests.length > 0 && mandatoryQuests.every(q => q.status === 'completed');
 
   if (allMandatoryCompleted) {
-    // 1. Complete Opportunity
     await updateLedgerRecord('opportunities', opportunityId, {
       status: 'completed'
     }, profile, 'Opportunity Auto-Completed');
 
-    // 2. Draft Outcome
     await createLedgerRecord('outcomes', {
       title: `${opp.title} - Outcome Draft`,
       relatedOpportunityId: opp.id,
       organizationId: opp.organizationId,
       organizationName: opp.organizationName,
-      participants: [...new Set(quests.map(q => q.ownerId).filter(Boolean))] as string[],
+      participants: [...new Set(quests.flatMap(q => q.assignedMembers || []).filter(Boolean))] as string[],
       evidence: [],
       revenueGenerated: opp.estimatedRevenue || 0,
       verificationStatus: 'pending',
       lessonsLearned: ''
     }, profile, 'Auto-Drafted Outcome');
 
-    // Notify the Receptionist who created it, or whoever is managing it
     await createLedgerRecord('notifications', {
       userId: opp.assignedReceptionist || profile.uid,
       type: 'opportunity_completed',
@@ -195,9 +205,6 @@ export async function approveSubmission(
   profile: GuildUser, 
   notes: string
 ) {
-  // FUTURE: Move to Cloud Function (Handles Verification, Rep, and Opportunity Cascades securely)
-  
-  // 1. Update Submission
   await updateLedgerRecord('questSubmissions', submission.id, { 
     status: 'approved',
     reviewerId: profile.uid,
@@ -205,7 +212,6 @@ export async function approveSubmission(
     reviewedAt: new Date().toISOString()
   }, profile, 'Submission Approved');
 
-  // 2. Create Verification Record
   await createLedgerRecord('verifications', {
     targetCollection: 'questSubmissions',
     targetId: submission.id,
@@ -217,15 +223,12 @@ export async function approveSubmission(
     notes: notes
   }, profile, 'Verification Record Created');
 
-  // 3. Update Quest Status
   const quest = await getRecord('quests', submission.questId);
   if (quest) {
     await updateLedgerRecord('quests', quest.id, {
       status: 'completed'
     }, profile, 'Quest Completed');
 
-    // 4. Award Reputation
-    // We use a direct firestore update to utilize `increment` which is safer for concurrent writes
     if (submission.memberId) {
       const userRef = doc(db, 'users', submission.memberId);
       await updateDoc(userRef, {
@@ -234,23 +237,14 @@ export async function approveSubmission(
         completedQuests: increment(1)
       });
       
-      // Rank Evaluation Logic
       const updatedUserSnap = await getDoc(userRef);
       if (updatedUserSnap.exists()) {
         const u = updatedUserSnap.data() as GuildUser;
         let newRank = u.guildRank;
         
-        // Automatic F
-        if (u.guildRank === 'Applicant' && u.completedQuests >= 1 && u.reputationScore >= 10) {
-          newRank = 'F';
-        }
-        // Automatic E
-        else if (u.guildRank === 'F' && u.completedQuests >= 5 && u.reputationScore >= 50 && (u.knowledgeEntriesCount || 0) >= 1) {
-          newRank = 'E';
-        }
-        // D Candidate Trigger
+        if (u.guildRank === 'Applicant' && u.completedQuests >= 1 && u.reputationScore >= 10) newRank = 'F';
+        else if (u.guildRank === 'F' && u.completedQuests >= 5 && u.reputationScore >= 50 && (u.knowledgeEntriesCount || 0) >= 1) newRank = 'E';
         else if (u.guildRank === 'E' && u.completedQuests >= 15 && u.reputationScore >= 150 && (u.knowledgeEntriesCount || 0) >= 5) {
-          // Check if pending review exists
           const existing = await getDocs(query(collection(db, 'rankReviews'), where('memberId', '==', u.uid), where('status', '==', 'pending')));
           if (existing.empty) {
             await createLedgerRecord('rankReviews', {
@@ -264,18 +258,9 @@ export async function approveSubmission(
         
         if (newRank !== u.guildRank) {
           await updateDoc(userRef, { guildRank: newRank });
-          await createLedgerRecord('notifications', {
-            userId: u.uid,
-            type: 'general_alert',
-            title: 'Rank Up!',
-            body: `Congratulations! You have been promoted to ${newRank} Rank.`,
-            read: false,
-            channel: 'inApp',
-            futureChannels: ['email']
-          }, profile, 'Rank Up Notification', true);
         }
       }
-      // We also log this manually since we bypassed the standard updateLedgerRecord to use increment
+      
       await logActivity({
         userId: profile.uid,
         userName: profile.fullName,
@@ -284,7 +269,6 @@ export async function approveSubmission(
         relatedEntityId: submission.memberId
       }); 
 
-      // Notify the member
       await createLedgerRecord('notifications', {
         userId: submission.memberId,
         type: 'submission_verified',
@@ -296,12 +280,10 @@ export async function approveSubmission(
       }, profile, 'Notification Sent', true);
     }
 
-    // 5. Check Opportunity Completion
     if (quest.opportunityId) {
       await checkOpportunityCompletion(quest.opportunityId, profile);
     }
 
-    // 6. Automated Revenue Event (if quest is paid)
     if (quest.isPaid && quest.paymentAmount) {
       await createLedgerRecord('revenueEvents', {
         source: `Quest Payment: ${quest.title}`,
@@ -315,4 +297,29 @@ export async function approveSubmission(
       }, profile, 'Revenue Event Auto-Generated on Approval');
     }
   }
+}
+
+// 7. User Lifecycle Approval
+export async function approveUserRole(
+  targetUserId: string,
+  newRole: GuildRole,
+  reason: string,
+  profile: GuildUser
+) {
+  if (roleWeight[profile.role] < 4) throw new Error('Unauthorized for role promotion');
+  
+  await updateLedgerRecord('users', targetUserId, {
+    role: newRole,
+    verificationStatus: 'verified'
+  } as any, profile, `Role Updated to ${newRole}: ${reason}`);
+
+  await createLedgerRecord('notifications', {
+    userId: targetUserId,
+    type: 'general_alert',
+    title: 'Profile Approved',
+    body: `Your application has been approved. You are now a ${newRole} in the Guild Federation.`,
+    read: false,
+    channel: 'inApp',
+    futureChannels: ['email']
+  }, profile, 'Approval Notification', true);
 }

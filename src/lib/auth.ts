@@ -11,24 +11,24 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
-import type { GuildRole, GuildUser } from '../types/guild';
+import type { GuildRole, GuildUser, Jurisdiction } from '../types/guild';
 
 function nowIso() {
   return new Date().toISOString();
 }
 
-export async function ensureUserProfile(user: User, fallbackRole: GuildRole = 'member') {
+export async function ensureUserProfile(user: User, jurisdiction?: Jurisdiction) {
   const userRef = doc(db, 'users', user.uid);
   const snapshot = await getDoc(userRef);
   if (snapshot.exists()) return snapshot.data() as GuildUser;
 
-  const profile: GuildUser = {
+  const profile: Omit<GuildUser, 'jurisdiction'> & { jurisdiction?: Jurisdiction } = {
     uid: user.uid,
     email: user.email || '',
-    fullName: user.displayName || user.email?.split('@')[0] || 'Guild Member',
+    fullName: user.displayName || user.email?.split('@')[0] || 'Guild Applicant',
     photoURL: user.photoURL ?? '',
-    role: fallbackRole,
-    city: '',
+    role: 'applicant',
+    city: jurisdiction?.cityName || '',
     contactInformation: '',
     skills: [],
     interests: [],
@@ -45,17 +45,56 @@ export async function ensureUserProfile(user: User, fallbackRole: GuildRole = 'm
     createdBy: user.uid,
     createdAt: nowIso(),
     updatedAt: nowIso(),
+    archiveStatus: 'active',
+    jurisdiction: jurisdiction || {
+      countryId: 'india',
+      countryName: 'India',
+      stateId: 'unknown',
+      stateName: 'Unknown',
+      cityId: 'unknown',
+      cityName: 'Unknown'
+    }
+  };
+
+  await setDoc(userRef, { ...profile, createdAtServer: serverTimestamp() });
+  return profile as GuildUser;
+}
+
+export async function registerWithEmail(
+  email: string, 
+  password: string, 
+  fullName: string, 
+  jurisdiction: Jurisdiction,
+  skills: string[],
+  interests: string[]
+) {
+  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  const userRef = doc(db, 'users', credential.user.uid);
+  
+  const profile: GuildUser = {
+    uid: credential.user.uid,
+    email: email,
+    fullName,
+    role: 'applicant',
+    jurisdiction,
+    skills,
+    interests,
+    verificationStatus: 'pending',
+    guildRank: 'Applicant',
+    reputationScore: 0,
+    experiencePoints: 0,
+    knowledgeEntriesCount: 0,
+    completedQuests: 0,
+    verifiedOutcomes: 0,
+    revenueEarned: 0,
+    activityHistory: ['Account Registered'],
+    createdBy: credential.user.uid,
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
     archiveStatus: 'active'
   };
 
   await setDoc(userRef, { ...profile, createdAtServer: serverTimestamp() });
-  return profile;
-}
-
-export async function registerWithEmail(email: string, password: string, fullName: string, role: GuildRole = 'member') {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
-  const profile = await ensureUserProfile(credential.user, role);
-  await setDoc(doc(db, 'users', credential.user.uid), { ...profile, fullName, role, updatedAt: nowIso() }, { merge: true });
   return credential.user;
 }
 
