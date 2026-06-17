@@ -67,6 +67,7 @@ export interface Organization extends AuditFields {
   needs: string[];
   opportunities: string[];
   currentStatus: OrganizationStatus;
+  ownerId?: string;
   trustLevel: 'new' | 'verified' | 'trusted' | 'partner';
   lastContactAt?: string;
   nextFollowUpAt?: string;

@@ -90,6 +90,20 @@ export async function logActivity(input: Omit<ActivityLog, 'id' | 'time'>) {
   });
 }
 
+export async function detectDuplicates<K extends keyof EntityMap>(
+  collectionName: K,
+  field: string,
+  value: string
+) {
+  const snapshot = await getDocs(query(
+    collection(db, collectionName),
+    where(field, '==', value),
+    where('archiveStatus', '==', 'active'),
+    limit(5)
+  ));
+  return snapshot.docs.map(doc => doc.data() as EntityMap[K]);
+}
+
 export async function createLedgerRecord<K extends keyof EntityMap>(
   collectionName: K,
   data: Omit<EntityMap[K], 'id' | keyof AuditFields> & Partial<AuditFields>,
@@ -102,6 +116,7 @@ export async function createLedgerRecord<K extends keyof EntityMap>(
     ...data,
     ...auditFields(actor.uid, data.responsibleReceptionist || actor.uid),
     id: ref.id,
+    ownerId: (data as any).ownerId || actor.uid,
     createdAtServer: serverTimestamp()
   } as unknown as EntityMap[K];
   await setDoc(ref, record as DocumentData);

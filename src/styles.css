@@ -2,6 +2,7 @@
 
 @layer base {
   :root {
+    /* Refined Color Palette - Professional Slate & Blue */
     --bg: #f8fafc;
     --bg-alt: #f1f5f9;
     --card: #ffffff;
@@ -10,13 +11,26 @@
     --border: #e2e8f0;
     --primary: #2563eb;
     --primary-dark: #1d4ed8;
+    --accent: #3b82f6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   }
 
   :root[data-theme='dark'] {
-    --bg: #0f172a;
-    --bg-alt: #1e293b;
+    --bg: #020617;
+    --bg-alt: #0f172a;
     --card: #1e293b;
-    --text: #f8fafc;
+    --text: #f1f5f9;
     --muted: #94a3b8;
     --border: #334155;
     --primary: #3b82f6;
@@ -26,6 +40,8 @@
   body {
     background-color: var(--bg);
     color: var(--text);
+    @apply transition-colors duration-200 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   button, input, textarea, select {
@@ -33,11 +49,11 @@
   }
   
   input, textarea, select {
-    @apply w-full border border-[var(--border)] rounded-md px-3 py-2 bg-[var(--card)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all;
+    @apply w-full border border-[var(--border)] rounded-[var(--radius-md)] px-4 py-2.5 bg-[var(--card)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20 focus:border-[var(--primary)] transition-all;
   }
   
   textarea {
-    @apply min-h-[110px] resize-y;
+    @apply min-h-[120px] resize-y;
   }
 
   table {
@@ -45,69 +61,78 @@
   }
   
   th, td {
-    @apply p-3 border-b border-[var(--border)] text-left;
+    @apply p-4 border-b border-[var(--border)] text-left;
   }
   th {
-    @apply font-semibold text-[var(--muted)] text-sm;
+    @apply font-bold text-[var(--muted)] text-xs uppercase tracking-wider;
   }
 }
 
 @layer components {
+  /* Layout Structures */
   .shell {
-    @apply min-h-screen flex flex-col md:grid md:grid-cols-[260px_minmax(0,1fr)];
+    @apply min-h-screen flex flex-col md:grid md:grid-cols-[280px_minmax(0,1fr)];
   }
   
   .sidebar {
-    @apply sticky top-0 h-screen p-5 border-r border-[var(--border)] bg-[var(--card)];
+    @apply sticky top-0 h-screen p-6 border-r border-[var(--border)] bg-[var(--card)] z-30;
   }
 
   .main {
-    @apply min-w-0 p-4 md:p-8;
+    @apply min-w-0 p-4 md:p-10;
   }
   
   .topbar {
-    @apply flex justify-between gap-4 items-center mb-6 pb-4 border-b border-[var(--border)];
+    @apply flex justify-between gap-6 items-center mb-10 pb-6 border-b border-[var(--border)];
   }
   
   .top-actions {
-    @apply flex flex-wrap gap-2 items-center justify-end;
+    @apply flex flex-wrap gap-3 items-center justify-end;
   }
 
   .brand {
-    @apply flex gap-3 items-center mb-8;
+    @apply flex gap-4 items-center mb-10;
   }
   
   .brand-mark {
-    @apply w-10 h-10 grid place-items-center rounded-lg bg-[var(--primary)] text-white font-bold text-xl;
+    @apply w-11 h-11 grid place-items-center rounded-xl bg-[var(--primary)] text-white font-bold text-2xl shadow-lg shadow-[var(--primary)]/20;
   }
 
   .sidebar nav {
-    @apply grid gap-1;
+    @apply grid gap-2;
   }
   
   .sidebar a {
-    @apply flex gap-3 items-center px-4 py-2.5 rounded-lg text-[var(--muted)] hover:bg-[var(--bg-alt)] hover:text-[var(--text)] transition-colors;
+    @apply flex gap-4 items-center px-4 py-3 rounded-xl text-[var(--muted)] hover:bg-[var(--bg-alt)] hover:text-[var(--text)] transition-all duration-200 font-medium;
   }
   
   .sidebar a.active {
-    @apply bg-[var(--primary)]/10 text-[var(--primary)] font-medium;
+    @apply bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/20;
+  }
+  
+  .sidebar a.active svg {
+    @apply text-white;
   }
 
   /* Cards & Panels */
-  .panel, .hero-panel {
-    @apply bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm;
+  .panel {
+    @apply bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300;
+  }
+  
+  .hero-panel {
+    @apply bg-[var(--card)] border border-[var(--border)] rounded-3xl p-8 shadow-lg relative overflow-hidden;
   }
 
   .page-grid, .workbench {
-    @apply grid gap-6;
+    @apply grid gap-8;
   }
   
   .form-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+    @apply grid grid-cols-1 md:grid-cols-2 gap-6;
   }
   
   .form-grid label {
-    @apply grid gap-1.5 text-[var(--text)] font-medium text-sm;
+    @apply grid gap-2 text-[var(--text)] font-semibold text-sm;
   }
   
   .span-2 {
@@ -116,45 +141,77 @@
 
   /* Typography */
   .eyebrow {
-    @apply text-[var(--primary)] uppercase tracking-wider text-xs font-bold mb-1;
+    @apply text-[var(--primary)] uppercase tracking-[0.2em] text-[10px] font-black mb-2;
   }
+  
+  h1 { @apply text-3xl font-black tracking-tight; }
+  h2 { @apply text-2xl font-bold tracking-tight; }
+  h3 { @apply text-lg font-bold; }
 
   /* Buttons */
-  .primary, .ghost {
-    @apply inline-flex gap-2 items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  .primary, .ghost, .danger {
+    @apply inline-flex gap-2 items-center justify-center px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
   }
   
   .primary {
-    @apply bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)];
+    @apply bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] shadow-md hover:shadow-lg shadow-[var(--primary)]/10;
   }
   
   .ghost {
     @apply bg-transparent text-[var(--text)] border border-[var(--border)] hover:bg-[var(--bg-alt)];
   }
   
+  .danger {
+    @apply bg-[var(--error)]/10 text-[var(--error)] hover:bg-[var(--error)] hover:text-white border border-[var(--error)]/20;
+  }
+  
   .role-pill {
-    @apply inline-flex px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted)] text-sm;
+    @apply inline-flex px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--bg-alt)] text-[var(--muted)] text-[11px] font-bold uppercase tracking-wider;
   }
 
-  /* Responsive Cards for Tables */
+  /* Responsive Tables */
+  .table-wrap {
+    @apply w-full overflow-x-auto rounded-xl border border-[var(--border)];
+  }
+  
   .responsive-table {
     @apply w-full;
   }
   
   .responsive-table thead {
-    @apply hidden md:table-header-group;
+    @apply bg-[var(--bg-alt)];
   }
   
-  .responsive-table tr {
-    @apply flex flex-col border border-[var(--border)] rounded-lg mb-4 p-4 bg-[var(--card)] md:table-row md:border-0 md:mb-0 md:p-0 md:bg-transparent;
+  .responsive-table tr:last-child td {
+    @apply border-b-0;
   }
   
-  .responsive-table td {
-    @apply flex justify-between items-center border-b-0 py-2 md:table-cell md:border-b border-[var(--border)] md:py-3;
+  /* Mobile UI Adjustments */
+  @media (max-width: 768px) {
+    .main { @apply p-6; }
+    .topbar { @apply flex-col items-start gap-4 mb-8; }
+    .top-actions { @apply w-full justify-start; }
+    
+    .responsive-table thead { @apply hidden; }
+    .responsive-table tr {
+      @apply flex flex-col border-b border-[var(--border)] p-4 bg-[var(--card)] last:border-b-0;
+    }
+    .responsive-table td {
+      @apply flex justify-between items-center py-2 border-b-0 px-0;
+    }
+    .responsive-table td::before {
+      content: attr(data-label);
+      @apply text-[var(--muted)] text-[10px] uppercase font-black tracking-widest;
+    }
   }
-  
-  .responsive-table td::before {
-    content: attr(data-label);
-    @apply text-[var(--muted)] text-xs uppercase font-bold md:hidden mr-4;
+
+  /* Animated Utilities */
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
 }

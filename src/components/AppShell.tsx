@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag, LayoutDashboard, LogOut, Moon, Shield, Sparkles, Sun, UsersRound, Menu } from 'lucide-react';
+import { BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag, LayoutDashboard, LogOut, Moon, Shield, Sparkles, Sun, UsersRound, Menu, X } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useAuth } from '../context/AuthContext';
 import { hasRole, roleLabels } from '../lib/rbac';
@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { NetworkIndicator } from './NetworkIndicator';
 import { NotificationCenter } from './NotificationCenter';
 import { GlobalSearch } from './GlobalSearch';
+import { useState } from 'react';
 
 const nav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['member', 'contributor', 'receptionist', 'guildManager', 'guildAdmin'] },
@@ -27,6 +28,7 @@ export function AppShell() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const { resolvedTheme, setTheme } = useTheme();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   function toggleTheme() {
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
@@ -37,7 +39,7 @@ export function AppShell() {
     navigate('/login');
   }
 
-  const mobileNav = nav.filter(item => hasRole(profile?.role, [...item.roles])).slice(0, 5);
+  const allowedNav = nav.filter((item) => hasRole(profile?.role, [...item.roles]));
 
   return (
     <div className="shell">
@@ -48,31 +50,62 @@ export function AppShell() {
         <div className="brand">
           <span className="brand-mark">G</span>
           <div>
-            <strong>Guild OS</strong>
-            <small>Reception + Ledger</small>
+            <strong className="block leading-tight text-lg">Guild OS</strong>
+            <small className="text-[var(--muted)] font-bold uppercase text-[10px] tracking-tighter">Human Network Ledger</small>
           </div>
         </div>
         <nav>
-          {nav.filter((item) => hasRole(profile?.role, [...item.roles])).map((item) => {
+          {allowedNav.map((item) => {
             const Icon = item.icon;
-            return <NavLink key={item.to} to={item.to} end={item.to === '/'}><Icon size={18} />{item.label}</NavLink>;
+            return <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({isActive}) => isActive ? 'active' : ''}><Icon size={20} />{item.label}</NavLink>;
           })}
         </nav>
       </aside>
 
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-[var(--bg)] md:hidden flex flex-col p-6 animate-in slide-in-from-left duration-300">
+           <div className="flex justify-between items-center mb-10">
+              <div className="flex gap-4 items-center">
+                <span className="brand-mark">G</span>
+                <strong>Guild OS</strong>
+              </div>
+              <button className="ghost p-2" onClick={() => setIsMobileMenuOpen(false)}><X size={24}/></button>
+           </div>
+           <nav className="grid gap-2 overflow-y-auto">
+              {allowedNav.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setIsMobileMenuOpen(false)} className={({isActive}) => `flex gap-4 items-center px-4 py-4 rounded-xl font-bold ${isActive ? 'bg-[var(--primary)] text-white' : 'text-[var(--muted)]'}`}>
+                    <Icon size={24} />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+           </nav>
+           <div className="mt-auto pt-6 border-t border-[var(--border)]">
+              <button className="danger w-full py-4" onClick={handleLogout}><LogOut size={20} /> Logout</button>
+           </div>
+        </div>
+      )}
+
       <main className="main">
         <header className="topbar">
           <div className="hidden md:block">
-            <p className="eyebrow">Problem &rarr; Revenue &rarr; Knowledge &rarr; Growth</p>
-            <h1>{profile?.city ? `${profile.city} Guild Command` : 'Guild Command'}</h1>
+            <p className="eyebrow">Operational Readiness: High &middot; {profile?.role}</p>
+            <h1>{profile?.city ? `${profile.city} Command` : 'Command'}</h1>
           </div>
           
-          <div className="md:hidden flex items-center gap-2">
-            <span className="brand-mark w-8 h-8 text-sm">G</span>
-            <strong>Guild OS</strong>
+          <div className="md:hidden flex items-center justify-between w-full">
+            <button className="ghost p-2" onClick={() => setIsMobileMenuOpen(true)}><Menu size={24} /></button>
+            <div className="flex items-center gap-2">
+              <span className="brand-mark w-8 h-8 text-sm">G</span>
+              <strong>Guild OS</strong>
+            </div>
+            <NotificationCenter />
           </div>
 
-          <div className="top-actions">
+          <div className="top-actions hidden md:flex">
             <GlobalSearch />
             <NotificationCenter />
             
@@ -81,32 +114,15 @@ export function AppShell() {
               <span className="hidden md:inline ml-1">Theme</span>
             </button>
             
-            <span className="role-pill hidden md:inline-flex">{profile?.role ? roleLabels[profile.role] : 'Guest'}</span>
-            <button className="ghost hidden md:flex" type="button" onClick={handleLogout}><LogOut size={18} /> Logout</button>
+            <span className="role-pill">{profile?.role ? roleLabels[profile.role] : 'Guest'}</span>
+            <button className="ghost" type="button" onClick={handleLogout}><LogOut size={18} /> Logout</button>
           </div>
         </header>
 
-        <div className="pb-20 md:pb-0">
+        <div className="content-area">
           <Outlet />
         </div>
       </main>
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 flex justify-around items-center h-16 z-40">
-        {mobileNav.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => `flex flex-col items-center justify-center w-full h-full text-xs gap-1 ${isActive ? 'text-blue-400' : 'text-gray-400'}`}>
-              <Icon size={20} />
-              <span>{item.label}</span>
-            </NavLink>
-          );
-        })}
-        <button onClick={handleLogout} className="flex flex-col items-center justify-center w-full h-full text-xs gap-1 text-gray-400 hover:text-red-400">
-          <LogOut size={20} />
-          <span>Logout</span>
-        </button>
-      </nav>
     </div>
   );
 }

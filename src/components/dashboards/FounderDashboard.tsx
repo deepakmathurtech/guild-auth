@@ -1,138 +1,190 @@
-import React, { useEffect, useState } from 'react';
-import { collection, query, getDocs } from 'firebase/firestore';
+import React, { useEffect, useMemo, useState } from 'react';
+import { collection, query, getDocs, where, limit, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../context/AuthContext';
-import { ActivityLog, Organization, Opportunity, Quest, GuildUser } from '../../types/guild';
-import { Shield, Target, Activity, TrendingUp, Users, BookOpen } from 'lucide-react';
+import { ActivityLog, Organization, Opportunity, Quest, GuildUser, RevenueEvent, Need } from '../../types/guild';
+import { Shield, Target, Activity, TrendingUp, Users, BookOpen, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import { auditQuestHealth, type HealthIssue } from '../../services/healthService';
 
 export function FounderDashboard() {
   const { profile } = useAuth();
-  const [metrics, setMetrics] = useState({
-    healthScore: 0,
-    activeOrgs: 0,
-    activeOpportunities: 0,
-    activeMembers: 0,
-    knowledgeGrowth: 0,
-    totalRevenue: 0
+  const [data, setData] = useState<{
+    users: GuildUser[],
+    orgs: Organization[],
+    opps: Opportunity[],
+    needs: Need[],
+    quests: Quest[],
+    revenue: RevenueEvent[],
+    logs: ActivityLog[]
+  }>({
+    users: [],
+    orgs: [],
+    opps: [],
+    needs: [],
+    quests: [],
+    revenue: [],
+    logs: []
   });
 
-  const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadFounderData() {
-      // Load raw counts for metrics
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const orgsSnap = await getDocs(collection(db, 'organizations'));
-      const oppsSnap = await getDocs(collection(db, 'opportunities'));
-      const knowledgeSnap = await getDocs(collection(db, 'knowledgeBase'));
-      const revenueSnap = await getDocs(collection(db, 'revenueEvents'));
-      const logsSnap = await getDocs(query(collection(db, 'activityLogs')));
+      const [u, o, opp, n, q, r, l] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'organizations')),
+        getDocs(collection(db, 'opportunities')),
+        getDocs(collection(db, 'needs')),
+        getDocs(collection(db, 'quests')),
+        getDocs(collection(db, 'revenueEvents')),
+        getDocs(query(collection(db, 'activityLogs'), orderBy('time', 'desc'), limit(20)))
+      ]);
 
-      let revenue = 0;
-      revenueSnap.docs.forEach(d => revenue += (d.data().amount || 0));
-
-      const activeMembers = usersSnap.docs.length;
-      const verifiedWorkCount = oppsSnap.docs.filter(d => d.data().status === 'completed').length;
-      
-      // Guild Health Score calculation (simple logic)
-      let health = 0;
-      if (activeMembers > 0) health += 20;
-      if (verifiedWorkCount > 0) health += 20;
-      if (knowledgeSnap.docs.length > 0) health += 20;
-      if (orgsSnap.docs.length > 0) health += 20;
-      if (revenue > 0) health += 20;
-
-      setMetrics({
-        healthScore: health,
-        activeOrgs: orgsSnap.docs.length,
-        activeOpportunities: oppsSnap.docs.filter(d => d.data().status === 'open' || d.data().status === 'inProgress').length,
-        activeMembers: activeMembers,
-        knowledgeGrowth: knowledgeSnap.docs.length,
-        totalRevenue: revenue
+      setData({
+        users: u.docs.map(d => d.data() as GuildUser),
+        orgs: o.docs.map(d => d.data() as Organization),
+        opps: opp.docs.map(d => d.data() as Opportunity),
+        needs: n.docs.map(d => d.data() as Need),
+        quests: q.docs.map(d => d.data() as Quest),
+        revenue: r.docs.map(d => d.data() as RevenueEvent),
+        logs: l.docs.map(d => d.data() as ActivityLog)
       });
-
-      const sortedLogs = logsSnap.docs.map(d => d.data() as ActivityLog).sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
-      setRecentActivity(sortedLogs);
+      setLoading(false);
     }
     loadFounderData();
   }, []);
 
+  const metrics = useMemo(() => {
+    const totalRev = data.revenue.reduce((s, i) => s + (i.amount || 0), 0);
+    const activeQuests = data.quests.filter(q => q.status !== 'completed' && q.status !== 'closed' && q.status !== 'archived').length;
+    const completedQuests = data.quests.filter(q => q.status === 'completed').length;
+    const totalKnowledge = data.users.reduce((s, i) => s + (i.knowledgeEntriesCount || 0), 0);
+    
+    // Bottleneck detection
+    const issues: HealthIssue[] = [];
+    data.quests.forEach(q => issues.push(...auditQuestHealth(q)));
+    
+    return {
+      totalRev,
+      activeQuests,
+      completedQuests,
+      totalKnowledge,
+      healthScore: Math.max(0, 100 - (issues.filter(i => i.type === 'CRITICAL').length * 5)),
+      criticalIssues: issues.filter(i => i.type === 'CRITICAL').length,
+      warningIssues: issues.filter(i => i.type === 'WARNING').length
+    };
+  }, [data]);
+
+  const performance = useMemo(() => {
+    const receptionists = data.users.filter(u => u.role === 'receptionist' || u.role === 'guildManager');
+    return receptionists.map(r => {
+      const orgsOwned = data.orgs.filter(o => o.ownerId === r.uid || o.responsibleReceptionist === r.uid).length;
+      const questsManaged = data.quests.filter(q => q.assignedReceptionistId === r.uid).length;
+      return { name: r.fullName, orgsOwned, questsManaged };
+    }).sort((a, b) => b.orgsOwned - a.orgsOwned).slice(0, 5);
+  }, [data]);
+
+  if (loading) return <div className="p-10 animate-pulse text-center font-bold">Synchronizing Human Network Ledger...</div>;
+
   return (
     <div className="page-grid">
-      <div className="topbar">
-        <div className="flex gap-4 items-center">
-          <Shield className="w-8 h-8 text-[var(--primary)]" />
+      <div className="hero-panel bg-gradient-to-br from-slate-900 to-blue-950 text-white border-none">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
-            <h1 className="text-2xl font-bold">Founder Oversight</h1>
-            <p className="text-[var(--muted)]">Permanent Audit & System Health</p>
+            <p className="eyebrow text-blue-400">Strategic Oversight</p>
+            <h1 className="text-4xl">Guild Health: {metrics.healthScore}%</h1>
+            <p className="text-blue-200/60 mt-2 max-w-md">System-wide operational audit across all cities and organizations.</p>
+          </div>
+          <div className="flex gap-4">
+            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center min-w-[120px]">
+              <span className="block text-3xl font-black">{data.orgs.length}</span>
+              <span className="text-[10px] uppercase font-bold text-blue-300">Total Orgs</span>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center min-w-[120px]">
+              <span className="block text-3xl font-black">₹{(metrics.totalRev / 1000).toFixed(1)}k</span>
+              <span className="text-[10px] uppercase font-bold text-blue-300">Revenue Flow</span>
+            </div>
+          </div>
+        </div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 blur-[100px] rounded-full -mr-32 -mt-32"></div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="panel bg-red-500/5 border-red-500/20">
+          <div className="flex justify-between items-start mb-6">
+            <h3 className="flex items-center gap-2 text-red-500"><AlertCircle size={20}/> Critical Risks</h3>
+            <span className="bg-red-500 text-white px-2 py-1 rounded-lg text-xs font-bold">{metrics.criticalIssues}</span>
+          </div>
+          <p className="text-sm text-[var(--muted)] mb-4">Operational failures requiring immediate intervention.</p>
+          <div className="space-y-3">
+             {metrics.criticalIssues > 0 ? (
+               <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20 text-xs font-bold text-red-600">
+                 Multiple quests missing financial data or stalled for &gt; 14 days.
+               </div>
+             ) : <div className="text-sm font-bold text-green-500 flex items-center gap-2"><CheckCircle2 size={16}/> All systems nominal</div>}
+          </div>
+        </div>
+
+        <div className="panel">
+          <h3 className="flex items-center gap-2 mb-6"><TrendingUp size={20} className="text-blue-500"/> Growth & Value</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Completed Quests</span>
+              <span className="font-bold">{metrics.completedQuests}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Knowledge Assets</span>
+              <span className="font-bold">{metrics.totalKnowledge}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Active Members</span>
+              <span className="font-bold">{data.users.length}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="panel">
+          <h3 className="flex items-center gap-2 mb-6"><Users size={20} className="text-purple-500"/> Best Performers</h3>
+          <div className="space-y-4">
+            {performance.map((r, i) => (
+              <div key={r.name} className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-slate-200 text-[10px] grid place-items-center font-bold">{i+1}</span>
+                  <span className="text-sm font-medium">{r.name}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-[10px] bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-md font-bold">{r.orgsOwned} Orgs</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="panel flex flex-col items-center justify-center py-8">
-          <Activity className="w-12 h-12 text-blue-500 mb-2" />
-          <h3 className="text-4xl font-bold">{metrics.healthScore} / 100</h3>
-          <p className="text-[var(--muted)] font-medium uppercase text-xs tracking-wider mt-1">Guild Health Score</p>
+      <div className="panel p-0 overflow-hidden">
+        <div className="p-6 border-b border-[var(--border)] flex justify-between items-center">
+          <h3 className="flex items-center gap-2"><Activity size={20} className="text-[var(--primary)]"/> Live Audit Trail</h3>
+          <span className="role-pill">Last 20 Actions</span>
         </div>
-        
-        <div className="panel">
-          <h3 className="eyebrow flex items-center gap-2"><Target className="w-4 h-4"/> Guild Metrics</h3>
-          <div className="grid gap-3 mt-4">
-            <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
-              <span className="text-[var(--muted)]">Active Members</span>
-              <span className="font-bold">{metrics.activeMembers}</span>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
-              <span className="text-[var(--muted)]">Active Organizations</span>
-              <span className="font-bold">{metrics.activeOrgs}</span>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
-              <span className="text-[var(--muted)]">Active Opportunities</span>
-              <span className="font-bold">{metrics.activeOpportunities}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="panel">
-          <h3 className="eyebrow flex items-center gap-2"><TrendingUp className="w-4 h-4"/> Growth Trends</h3>
-          <div className="grid gap-3 mt-4">
-            <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
-              <span className="text-[var(--muted)]">Total Revenue Flow</span>
-              <span className="font-bold text-green-600">₹{metrics.totalRevenue}</span>
-            </div>
-            <div className="flex justify-between items-center pb-2 border-b border-[var(--border)]">
-              <span className="text-[var(--muted)] flex items-center gap-1"><BookOpen className="w-3 h-3"/> Knowledge Added</span>
-              <span className="font-bold">{metrics.knowledgeGrowth} Entries</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="panel">
-        <h3 className="eyebrow mb-4">Live Operational Audit</h3>
-        <div className="responsive-table">
-          <table>
+        <div className="table-wrap border-none rounded-none">
+          <table className="responsive-table">
             <thead>
               <tr>
                 <th>Time</th>
                 <th>Operator</th>
                 <th>Action</th>
-                <th>Entity Type</th>
+                <th>Target</th>
               </tr>
             </thead>
             <tbody>
-              {recentActivity.map(log => (
+              {data.logs.map(log => (
                 <tr key={log.id}>
-                  <td data-label="Time">{new Date(log.time).toLocaleString()}</td>
-                  <td data-label="Operator" className="font-medium text-[var(--primary)]">{log.userName || log.userId}</td>
-                  <td data-label="Action">{log.action}</td>
-                  <td data-label="Type"><span className="role-pill">{log.relatedEntityType}</span></td>
+                  <td data-label="Time" className="text-xs text-[var(--muted)]">{new Date(log.time).toLocaleTimeString()}</td>
+                  <td data-label="Operator" className="font-bold text-sm text-[var(--primary)]">{log.userName}</td>
+                  <td data-label="Action" className="text-sm font-medium">{log.action}</td>
+                  <td data-label="Target"><span className="role-pill">{log.relatedEntityType}</span></td>
                 </tr>
               ))}
-              {recentActivity.length === 0 && (
-                <tr><td colSpan={4} className="text-center py-4">No recent activity found.</td></tr>
-              )}
             </tbody>
           </table>
         </div>

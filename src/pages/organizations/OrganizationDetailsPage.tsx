@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getRecord, updateLedgerRecord, addInteraction, subscribeRecords } from '../../lib/repository';
+import { getRecord, updateLedgerRecord, addInteraction, subscribeRecords, listRecords } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
-import type { Organization, Need, InteractionRecord, Quest } from '../../types/guild';
-import { where, orderBy } from 'firebase/firestore';
+import type { Organization, Quest, InteractionRecord, GuildUser } from '../../types/guild';
 import { StatusBadge } from '../../components/StatusBadge';
+import { where, orderBy, limit } from 'firebase/firestore';
+import { Phone, Mail, MapPin, User, History, MessageSquare, Plus, ArrowLeftRight, Save } from 'lucide-react';
 
 export function OrganizationDetailsPage() {
   const { id } = useParams();
@@ -12,207 +13,170 @@ export function OrganizationDetailsPage() {
   const { profile } = useAuth();
   
   const [org, setOrg] = useState<Organization | null>(null);
-  const [needs, setNeeds] = useState<Need[]>([]);
-  const [interactions, setInteractions] = useState<InteractionRecord[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
-  const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState<Partial<Organization>>({});
-  
-  const [interactionText, setInteractionText] = useState('');
-  const [interactionType, setInteractionType] = useState<'note' | 'call' | 'meeting'>('note');
-  const [nextAction, setNextAction] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const [interactions, setInteractions] = useState<InteractionRecord[]>([]);
+  const [receptionists, setReceptionists] = useState<GuildUser[]>([]);
+  const [isLoggingInteraction, setIsLoggingInteraction] = useState(false);
+  const [isTransferringOwnership, setIsTransferringOwnership] = useState(false);
+  const [interactionForm, setInteractionForm] = useState({ summary: '', type: 'note' as any });
 
   useEffect(() => {
     if (!id) return;
-    getRecord('organizations', id).then(data => {
-      if (data) {
-        setOrg(data);
-        setForm(data);
-      }
-    });
-    
-    const unsubNeeds = subscribeRecords('needs', setNeeds, [where('organizationId', '==', id), where('archiveStatus', '==', 'active')]);
-    const unsubInteractions = subscribeRecords('interactions', setInteractions, [where('archiveStatus', '==', 'active')]);
+    getRecord('organizations', id).then(setOrg);
     const unsubQuests = subscribeRecords('quests', setQuests, [where('organizationId', '==', id), where('archiveStatus', '==', 'active')]);
+    const unsubInter = subscribeRecords('interactions', setInteractions, [where('organizationId', '==', id), orderBy('createdAt', 'desc'), limit(50)]);
     
-    return () => {
-      unsubNeeds();
-      unsubInteractions();
-      unsubQuests();
-    };
+    listRecords('users', [where('role', 'in', ['receptionist', 'guildManager', 'guildAdmin'])]).then(res => setReceptionists(res as GuildUser[]));
+
+    return () => { unsubQuests(); unsubInter(); };
   }, [id]);
 
-  // Filter interactions manually if we don't have an index for orgId (we didn't store orgId explicitly in addInteraction but wait, I should have!)
-  // Oh, wait! I didn't add orgId to interactions! Let's assume interactions is a subcollection or we just add orgId to the interaction object.
-  // Actually, I should update addInteraction to take orgId. The user needs this to be tied.
-  
-  async function saveEdits(e: React.FormEvent) {
+  async function handleLogInteraction(e: React.FormEvent) {
     e.preventDefault();
     if (!org || !profile) return;
-    await updateLedgerRecord('organizations', org.id, form, profile, 'Organization Updated');
-    setOrg({ ...org, ...form });
-    setEditMode(false);
+    await addInteraction(org.id, profile, interactionForm.summary, interactionForm.type);
+    setIsLoggingInteraction(false);
+    setInteractionForm({ summary: '', type: 'note' });
+    await updateLedgerRecord('organizations', org.id, { lastContactAt: new Date().toISOString() }, profile, 'Interaction Logged');
   }
 
-  async function logInteraction(e: React.FormEvent) {
-    e.preventDefault();
-    if (!org || !profile || !interactionText) return;
-    
-    // We will cheat and put the orgId into the interaction summary for now, or just add it to the InteractionRecord schema if it existed.
-    // Actually, I added it to the InteractionRecord schema in types. Let's fix that.
+  async function handleTransferOwnership(newOwnerId: string) {
+    if (!org || !profile) return;
+    const newOwner = receptionists.find(r => r.uid === newOwnerId);
     await updateLedgerRecord('organizations', org.id, { 
-      lastContactAt: new Date().toISOString(),
-      nextFollowUpAt: dueDate || org.nextFollowUpAt
-    }, profile, 'Organization Contacted');
-
-    await addInteraction(org.id, profile, interactionText, interactionType, nextAction, dueDate);
-    
-    setInteractionText('');
-    setNextAction('');
-    setDueDate('');
-    getRecord('organizations', org.id).then(data => data && setOrg(data));
+      ownerId: newOwnerId, 
+      responsibleReceptionist: newOwnerId 
+    }, profile, `Ownership Transferred to ${newOwner?.fullName}`);
+    setOrg({ ...org, ownerId: newOwnerId, responsibleReceptionist: newOwnerId });
+    setIsTransferringOwnership(false);
   }
 
-  if (!org) return <p className="p-8">Loading organization...</p>;
+  if (!org) return <div className="p-10 text-center font-bold">Accessing Organization Ledger...</div>;
 
-  // Filter interactions for this org if we had orgId (which we don't in the schema currently, but it should be there. Wait, I'll update schema implicitly).
-  // Actually, I didn't add orgId to InteractionRecord. Let me filter by checking if it exists or just use it.
-  
   return (
-    <section className="page-grid">
-      <div className="hero-panel flex justify-between items-start">
+    <div className="workbench max-w-6xl mx-auto space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
-          <p className="eyebrow">{org.category} &middot; {org.currentStatus}</p>
-          <h2>{org.name}</h2>
-          <p>{org.city} &middot; {org.contactPerson}</p>
-        </div>
-        <div className="flex space-x-2">
-          <button className="primary" onClick={() => navigate('/quests/register', { state: { orgId: org.id, orgName: org.name } })}>Register Quest</button>
-          <button className="ghost" onClick={() => navigate('/organizations')}>&larr; Back to List</button>
-        </div>
-      </div>
-      
-      {/* ORGANIZATION HEALTH METRICS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 bg-[var(--card)] p-4 rounded border border-[var(--border)]">
-         <div><p className="text-[var(--muted)] text-xs uppercase mb-1">Total Quests</p><p className="font-bold">{quests.length}</p></div>
-         <div><p className="text-[var(--muted)] text-xs uppercase mb-1">Completed Quests</p><p className="font-bold text-green-400">{quests.filter(q => q.status === 'completed' || q.status === 'closed').length}</p></div>
-         <div><p className="text-[var(--muted)] text-xs uppercase mb-1">Revenue Generated</p><p className="font-bold text-yellow-400">₹{quests.reduce((acc, q) => acc + (q.paymentAmount || 0), 0)}</p></div>
-         <div><p className="text-[var(--muted)] text-xs uppercase mb-1">Trust Level</p><p className="font-bold"><span className="role-pill">{org.trustLevel || 'new'}</span></p></div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="panel">
-          <div className="flex justify-between items-center mb-4">
-            <h3>Details</h3>
-            <button className="ghost" onClick={() => setEditMode(!editMode)}>{editMode ? 'Cancel' : 'Edit'}</button>
+          <button className="ghost px-2 py-1 mb-4 flex items-center gap-1 text-xs" onClick={() => navigate('/organizations')}><Phone className="rotate-90" size={12}/> Back to Directory</button>
+          <p className="eyebrow">{org.category} &middot; Trust Level: {org.trustLevel}</p>
+          <h1 className="text-4xl">{org.name}</h1>
+          <div className="flex gap-2 mt-4">
+             <StatusBadge status={org.currentStatus} />
+             <span className="role-pill flex items-center gap-1"><User size={12}/> Owner: {receptionists.find(r => r.uid === (org.ownerId || org.responsibleReceptionist))?.fullName || 'Unassigned'}</span>
           </div>
-          
-          {editMode ? (
-            <form className="form-grid" onSubmit={saveEdits}>
-              <label>Name <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></label>
-              <label>Status 
-                <select value={form.currentStatus} onChange={e => setForm({...form, currentStatus: e.target.value as any})}>
-                  <option>new</option><option>contacted</option><option>active</option><option>partner</option><option>inactive</option>
-                </select>
-              </label>
-              <label>Trust Level 
-                <select value={form.trustLevel || 'new'} onChange={e => setForm({...form, trustLevel: e.target.value as any})}>
-                  <option>new</option><option>verified</option><option>trusted</option><option>partner</option>
-                </select>
-              </label>
-              <label>Contact <input value={form.contactPerson} onChange={e => setForm({...form, contactPerson: e.target.value})} /></label>
-              <label>Phone <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></label>
-              <label>Email <input value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></label>
-              <label>Next Follow-Up <input type="date" value={form.nextFollowUpAt?.split('T')[0] || ''} onChange={e => setForm({...form, nextFollowUpAt: new Date(e.target.value).toISOString()})} /></label>
-              <label className="span-2">Relationship Notes <textarea value={form.relationshipNotes} onChange={e => setForm({...form, relationshipNotes: e.target.value})} /></label>
-              <button className="primary span-2" type="submit">Save Changes</button>
-            </form>
-          ) : (
-            <div className="space-y-2">
-              <p><strong>Contact:</strong> {org.contactPerson} ({org.email || 'No email'}) {org.phone}</p>
-              <p><strong>Trust Level:</strong> <span className="role-pill">{org.trustLevel || 'new'}</span></p>
-              <p><strong>Last Contact:</strong> {org.lastContactAt ? new Date(org.lastContactAt).toLocaleDateString() : 'Never'}</p>
-              <p><strong>Next Follow Up:</strong> {org.nextFollowUpAt ? new Date(org.nextFollowUpAt).toLocaleDateString() : 'Not Set'}</p>
-              <p><strong>Notes:</strong> {org.relationshipNotes || 'None'}</p>
-            </div>
+        </div>
+        <div className="flex gap-2 w-full md:w-auto">
+          <button className="primary flex-1 md:flex-none" onClick={() => setIsLoggingInteraction(true)}><Plus size={18}/> Log Interaction</button>
+          {profile?.role === 'guildAdmin' && (
+            <button className="ghost flex-1 md:flex-none" onClick={() => setIsTransferringOwnership(!isTransferringOwnership)}><ArrowLeftRight size={18}/> Transfer</button>
           )}
         </div>
+      </div>
 
-        <div className="panel">
-          <h3>Interaction History</h3>
-          <form className="flex flex-col space-y-3 mb-6 bg-[var(--bg-alt)] p-4 rounded-md" onSubmit={logInteraction}>
-            <select value={interactionType} onChange={e => setInteractionType(e.target.value as any)}>
-              <option value="note">Note</option><option value="call">Call</option><option value="meeting">Meeting</option>
-            </select>
-            <textarea placeholder="Interaction summary or concern..." value={interactionText} onChange={e => setInteractionText(e.target.value)} required rows={3}></textarea>
-            <div className="flex gap-2">
-               <input className="flex-1 text-sm" placeholder="Next Action (Optional)" value={nextAction} onChange={e => setNextAction(e.target.value)} />
-               <input type="date" className="text-sm w-36" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-            </div>
-            <button className="primary self-end" type="submit">Log Interaction</button>
-          </form>
-          <div className="space-y-4 max-h-64 overflow-y-auto">
-            {interactions.map(inter => (
-              <div key={inter.id} className="border-l-2 border-green-500 pl-4 py-2 bg-[var(--bg-alt)] rounded-r">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-bold uppercase">{inter.type}</span>
-                  <span className="text-xs text-[var(--muted)]">{new Date(inter.createdAt).toLocaleString()}</span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="panel">
+            <h3 className="flex items-center gap-2 mb-6"><History size={20} className="text-[var(--primary)]"/> Relationship Timeline</h3>
+            <div className="space-y-6">
+              {isLoggingInteraction && (
+                <form className="bg-[var(--bg-alt)] p-4 rounded-2xl border border-[var(--primary)]/30 animate-in zoom-in-95" onSubmit={handleLogInteraction}>
+                  <div className="flex gap-2 mb-4">
+                    {['call', 'meeting', 'visit', 'note'].map(type => (
+                      <button key={type} type="button" onClick={() => setInteractionForm({...interactionForm, type: type as any})} className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${interactionForm.type === type ? 'bg-[var(--primary)] text-white' : 'bg-white text-[var(--muted)] border border-[var(--border)]'}`}>{type}</button>
+                    ))}
+                  </div>
+                  <textarea className="mb-4" placeholder="What happened? Log key outcomes and next steps..." required value={interactionForm.summary} onChange={e => setInteractionForm({...interactionForm, summary: e.target.value})} />
+                  <div className="flex justify-end gap-2">
+                    <button className="ghost text-xs" type="button" onClick={() => setIsLoggingInteraction(false)}>Cancel</button>
+                    <button className="primary text-xs" type="submit">Log in History</button>
+                  </div>
+                </form>
+              )}
+
+              {isTransferringOwnership && (
+                <div className="bg-purple-500/10 p-4 rounded-2xl border border-purple-500/30">
+                  <h4 className="text-sm font-bold mb-3">Transfer Responsibility</h4>
+                  <div className="grid gap-2">
+                    {receptionists.map(r => (
+                      <button key={r.uid} className="flex justify-between items-center p-3 bg-white rounded-xl text-sm hover:border-purple-500 border border-transparent transition-all" onClick={() => handleTransferOwnership(r.uid)}>
+                        <span>{r.fullName}</span>
+                        <span className="text-[10px] font-bold text-purple-500 uppercase tracking-widest">{r.role}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-sm">{inter.summary}</p>
-                {inter.nextAction && (
-                  <p className="text-xs text-blue-400 mt-2"><strong>Next:</strong> {inter.nextAction} {inter.dueDate && `(Due: ${inter.dueDate})`}</p>
-                )}
+              )}
+
+              {interactions.map((interaction, i) => (
+                <div key={interaction.id} className="relative pl-8 before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-[-24px] before:w-[2px] before:bg-[var(--border)] last:before:hidden">
+                  <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-white border-2 border-[var(--primary)] grid place-items-center">
+                    <MessageSquare size={12} className="text-[var(--primary)]" />
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl border border-[var(--border)] shadow-sm">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">{interaction.type} &middot; {new Date(interaction.createdAt).toLocaleString()}</span>
+                      <span className="text-[10px] font-bold text-[var(--primary)]">{receptionists.find(r => r.uid === interaction.createdBy)?.fullName}</span>
+                    </div>
+                    <p className="text-sm leading-relaxed">{interaction.summary}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <div className="panel">
+            <h3 className="mb-6">Contact Record</h3>
+            <div className="grid gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 grid place-items-center text-slate-500"><User size={20}/></div>
+                <div>
+                  <span className="block text-xs font-bold text-[var(--muted)]">Primary Contact</span>
+                  <span className="text-sm font-bold">{org.contactPerson}</span>
+                </div>
               </div>
-            ))}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 grid place-items-center text-slate-500"><Phone size={20}/></div>
+                <div>
+                  <span className="block text-xs font-bold text-[var(--muted)]">Phone</span>
+                  <span className="text-sm font-bold">{org.phone || 'Not Logged'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 grid place-items-center text-slate-500"><Mail size={20}/></div>
+                <div>
+                  <span className="block text-xs font-bold text-[var(--muted)]">Email</span>
+                  <span className="text-sm font-bold">{org.email || 'Not Logged'}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 grid place-items-center text-slate-500"><MapPin size={20}/></div>
+                <div>
+                  <span className="block text-xs font-bold text-[var(--muted)]">Location</span>
+                  <span className="text-sm font-bold">{org.city || org.address || 'Not Logged'}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <div className="panel md:col-span-2">
-          <div className="flex justify-between items-center mb-4">
-            <h3>Needs</h3>
-            <button className="ghost" onClick={() => navigate('/needs', { state: { orgId: org.id, orgName: org.name } })}>+ Add Need</button>
-          </div>
-          <div className="table-wrap">
-            <table className="responsive-table">
-              <thead><tr><th>Title</th><th>Status</th><th>Priority</th><th>Actions</th></tr></thead>
-              <tbody>
-                {needs.map(need => (
-                  <tr key={need.id}>
-                    <td>{need.title}</td><td><span className="role-pill">{need.status}</span></td><td>{need.priority}</td>
-                    <td><button className="ghost" onClick={() => navigate(`/needs/${need.id}`)}>View</button></td>
-                  </tr>
-                ))}
-                {needs.length === 0 && <tr><td colSpan={4} className="text-center">No needs logged for this organization yet.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        
-        {/* QUEST HISTORY */}
-        <div className="panel md:col-span-2">
-          <div className="flex justify-between items-center mb-4">
-            <h3>Quest History (Work Timeline)</h3>
-          </div>
-          <div className="table-wrap">
-            <table className="responsive-table">
-              <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Financial</th><th>Actions</th></tr></thead>
-              <tbody>
-                {quests.map(quest => (
-                  <tr key={quest.id}>
-                    <td className="font-mono text-blue-400">{quest.guildQuestId}</td>
-                    <td>{quest.title}</td>
-                    <td><StatusBadge status={quest.status} /></td>
-                    <td>{quest.isPaid ? <span className="text-green-400">Paid (₹{quest.paymentAmount})</span> : 'Unpaid'}</td>
-                    <td><button className="ghost" onClick={() => navigate(`/quests/${quest.id}`)}>Open Record</button></td>
-                  </tr>
-                ))}
-                {quests.length === 0 && <tr><td colSpan={5} className="text-center">No quests logged for this organization yet.</td></tr>}
-              </tbody>
-            </table>
+
+          <div className="panel bg-[var(--primary)] text-white border-none shadow-lg shadow-[var(--primary)]/20">
+             <h3 className="mb-2">Operational Pipeline</h3>
+             <p className="text-xs text-blue-100/60 mb-6">Total value generated by {org.name}</p>
+             <div className="grid gap-4">
+                <div className="flex justify-between items-center bg-white/10 p-3 rounded-xl">
+                  <span className="text-xs font-bold">Active Quests</span>
+                  <span className="text-lg font-black">{quests.length}</span>
+                </div>
+                <div className="flex justify-between items-center bg-white/10 p-3 rounded-xl">
+                  <span className="text-xs font-bold">Generated Revenue</span>
+                  <span className="text-lg font-black">₹{quests.reduce((s, q) => s + (q.paymentAmount || 0), 0)}</span>
+                </div>
+                <button className="bg-white text-[var(--primary)] w-full py-3 rounded-xl font-bold text-sm mt-2 hover:bg-blue-50 transition-colors" onClick={() => navigate('/needs', { state: { orgId: org.id, orgName: org.name } })}>Register New Need</button>
+             </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
