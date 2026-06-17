@@ -119,7 +119,7 @@ export function SubmissionReviewPage() {
           ) : (
             <div className="span-2">
               <p className="mb-2">This submission has already been processed.</p>
-              <p><strong>Status:</strong> <StatusBadge status={{sub.status}} /></p>
+              <p><strong>Status:</strong> <StatusBadge status={sub.status} /></p>
               <p className="mt-2"><strong>Notes:</strong> {sub.reviewerNotes || 'None'}</p>
             </div>
           )}

@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
-import type { ActivityLog, DashboardMetric, Need, Opportunity, Organization, QuestSubmission, RevenueEvent, VerificationRecord } from '../../types/guild';
+import type { ActivityLog, Need, Opportunity, Organization, QuestSubmission, RevenueEvent, VerificationRecord } from '../../types/guild';
 
 interface Props {
   organizations: Organization[];
@@ -11,7 +11,7 @@ interface Props {
   logs: ActivityLog[];
 }
 
-export function MemberDashboard({ opportunities, submissions, revenue }: Props) {
+export function MemberDashboard({ opportunities, submissions }: Props) {
   const { profile } = useAuth();
   
   const mySubmissions = submissions.filter(s => s.memberId === profile?.uid);
@@ -35,12 +35,12 @@ export function MemberDashboard({ opportunities, submissions, revenue }: Props) 
           <table>
             <thead><tr><th>Title</th><th>Category</th><th>Required Skills</th><th>Est. Value</th></tr></thead>
             <tbody>
-              {opportunities.filter(o => o.status === 'published' || o.status === 'open').slice(0,5).map(o => (
+              {opportunities.filter(o => !o.assignedMembers?.includes(profile?.uid || '') && ['open', 'matching', 'assigned', 'inProgress'].includes(o.status)).slice(0,5).map(o => (
                 <tr key={o.id}>
                   <td>{o.title}</td><td>{o.category}</td><td>{o.skillsRequired.join(', ')}</td><td>?{o.estimatedRevenue}</td>
                 </tr>
               ))}
-              {opportunities.length === 0 && <tr><td colSpan={4}>No new opportunities right now.</td></tr>}
+              {opportunities.filter(o => !o.assignedMembers?.includes(profile?.uid || '') && ['open', 'matching', 'assigned', 'inProgress'].includes(o.status)).length === 0 && <tr><td colSpan={4}>No new opportunities right now.</td></tr>}
             </tbody>
           </table>
         </div>

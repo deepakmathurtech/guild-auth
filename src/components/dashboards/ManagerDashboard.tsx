@@ -1,5 +1,5 @@
 import { useAuth } from '../../context/AuthContext';
-import type { ActivityLog, DashboardMetric, Need, Opportunity, Organization, QuestSubmission, RevenueEvent, VerificationRecord } from '../../types/guild';
+import type { ActivityLog, DashboardMetric, Need, Opportunity, Organization, QuestSubmission, VerificationRecord } from '../../types/guild';
 
 interface Props {
   metrics: DashboardMetric[];
@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function ManagerDashboard({ metrics, organizations, opportunities, verifications, submissions }: Props) {
-  const { profile } = useAuth();
+  
   
   return (
     <section className="page-grid">

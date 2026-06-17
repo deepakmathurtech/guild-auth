@@ -124,7 +124,7 @@ export function OutcomePage() {
                   <td>{outcome.organizationName || '-'}</td>
                   <td>?{outcome.revenueGenerated}</td>
                   <td>{outcome.participants?.length || 0}</td>
-                  <td><StatusBadge status={{outcome.verificationStatus}} /></td>
+                  <td><StatusBadge status={outcome.verificationStatus} /></td>
                 </tr>
               ))}
               {visible.length === 0 && <tr><td colSpan={5}>No outcomes recorded yet.</td></tr>}

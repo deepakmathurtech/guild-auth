@@ -8,8 +8,8 @@ interface Props {
   logs: ActivityLog[];
 }
 
-export function AdminDashboard({ metrics, organizations, revenue, logs }: Props) {
-  const { profile } = useAuth();
+export function AdminDashboard({ organizations, revenue, logs }: Props) {
+  
   
   const totalRevenue = revenue.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   

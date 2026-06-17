@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { createLedgerRecord, getRecord } from '../../../lib/repository';
-import { convertNeedToOpportunity } from '../../../services/workflowService';
-import type { Opportunity, Need } from '../../../types/guild';
+import { useAuth } from '../../context/AuthContext';
+import { createLedgerRecord, getRecord } from '../../lib/repository';
+import { convertNeedToOpportunity } from '../../services/workflowService';
+import type { Opportunity, Need } from '../../types/guild';
 
 interface Props {
   initialData?: Partial<Opportunity>;
@@ -31,7 +31,7 @@ export function OpportunityCreateForm({ initialData = {}, onSuccess, onCancel }:
     try {
       const oppData = {
         ...form,
-        skillsRequired: form.skillsRequired.split(',').map(s => s.trim()).filter(Boolean),
+        skillsRequired: form.skillsRequired ? form.skillsRequired.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
         status: 'draft' as const,
       };
 

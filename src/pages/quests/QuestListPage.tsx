@@ -116,7 +116,7 @@ export function QuestListPage() {
                 <tr key={quest.id}>
                   <td><strong>{quest.title}</strong></td>
                   <td>{quest.category}</td>
-                  <td><StatusBadge status={{quest.difficulty}} /></td>
+                  <td><StatusBadge status={quest.difficulty} /></td>
                   <td>{quest.isMandatory ? 'Mandatory' : 'Optional'}</td>
                   <td>+{quest.reputationPoints}</td>
                   <td><button className="ghost" onClick={() => navigate(`/quests/${quest.id}`)}>Manage</button></td>

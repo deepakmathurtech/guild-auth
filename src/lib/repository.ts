@@ -87,7 +87,8 @@ export async function createLedgerRecord<K extends keyof EntityMap>(
   collectionName: K,
   data: Omit<EntityMap[K], 'id' | keyof AuditFields> & Partial<AuditFields>,
   actor: GuildUser,
-  action: string
+  action: string,
+  silent?: boolean
 ) {
   const ref = doc(collection(db, collectionName));
   const record = {
@@ -95,15 +96,17 @@ export async function createLedgerRecord<K extends keyof EntityMap>(
     ...auditFields(actor.uid, data.responsibleReceptionist || actor.uid),
     id: ref.id,
     createdAtServer: serverTimestamp()
-  } as EntityMap[K];
+  } as unknown as EntityMap[K];
   await setDoc(ref, record as DocumentData);
-  await logActivity({
-    userId: actor.uid,
-    userName: actor.fullName,
-    action,
-    relatedEntityType: collectionName as LedgerCollection,
-    relatedEntityId: ref.id
-  });
+  if (!silent) {
+    await logActivity({
+      userId: actor.uid,
+      userName: actor.fullName,
+      action,
+      relatedEntityType: collectionName as LedgerCollection,
+      relatedEntityId: ref.id
+    });
+  }
   return record;
 }
 

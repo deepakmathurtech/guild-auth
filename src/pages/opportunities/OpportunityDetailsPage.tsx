@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getRecord, updateLedgerRecord, subscribeRecords } from '../../lib/repository';
+import { getRecord, updateLedgerRecord } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
 import type { Opportunity, Quest, GuildUser } from '../../types/guild';
 import { where } from 'firebase/firestore';
@@ -11,7 +11,7 @@ export function OpportunityDetailsPage() {
   const { profile } = useAuth();
   
   const [opp, setOpp] = useState<Opportunity | null>(null);
-  const [quests, setQuests] = useState<Quest[]>([]);
+  
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Partial<Opportunity>>({});
   

@@ -3,7 +3,7 @@ import { limit, orderBy, where } from 'firebase/firestore';
 import { archiveLedgerRecord, createLedgerRecord, subscribeRecords, updateLedgerRecord } from '../lib/repository';
 import { useAuth } from '../context/AuthContext';
 import type { EntityMap } from '../lib/repository';
-import type { GuildRole, LedgerCollection, VerificationMethod } from '../types/guild';
+import type { GuildRole } from '../types/guild';
 import { hasRole } from '../lib/rbac';
 
 type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'tags';

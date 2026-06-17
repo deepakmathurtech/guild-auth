@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { createLedgerRecord, listRecords } from '../../../lib/repository';
-import type { Need, Organization } from '../../../types/guild';
+import { useAuth } from '../../context/AuthContext';
+import { createLedgerRecord, listRecords } from '../../lib/repository';
+import type { Need, Organization } from '../../types/guild';
 import { where } from 'firebase/firestore';
 
 interface Props {

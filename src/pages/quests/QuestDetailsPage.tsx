@@ -36,7 +36,7 @@ export function QuestDetailsPage() {
         <div>
           <p className="eyebrow">Quest Details &middot; {quest.isMandatory ? 'Mandatory' : 'Optional'}</p>
           <h2>{quest.title}</h2>
-          <p>{quest.category} &middot; {quest.difficulty} &middot; <StatusBadge status={{quest.status}} /></p>
+          <p>{quest.category} &middot; {quest.difficulty} &middot; <StatusBadge status={quest.status} /></p>
         </div>
         <button className="ghost" onClick={() => navigate('/quests')}>&larr; Back</button>
       </div>
@@ -65,7 +65,7 @@ export function QuestDetailsPage() {
               <div key={sub.id} className="border border-gray-700 p-4 rounded bg-gray-800">
                 <div className="flex justify-between mb-2">
                   <strong>Member: {sub.memberId}</strong>
-                  <StatusBadge status={{sub.status}} />
+                  <StatusBadge status={sub.status} />
                 </div>
                 {sub.report && <p className="text-sm italic mb-2">&quot;{sub.report}&quot;</p>}
                 <button className="ghost" onClick={() => navigate(`/submissions/${sub.id}`)}>Review Submission &rarr;</button>

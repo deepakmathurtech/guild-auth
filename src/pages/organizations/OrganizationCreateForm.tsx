@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { createLedgerRecord } from '../../../lib/repository';
-import type { Organization } from '../../../types/guild';
+import { useAuth } from '../../context/AuthContext';
+import { createLedgerRecord } from '../../lib/repository';
+import type { Organization } from '../../types/guild';
 
 interface Props {
   onSuccess: () => void;

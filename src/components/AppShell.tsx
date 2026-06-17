@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Bell, BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag, LayoutDashboard, LogOut, Moon, Shield, Sparkles, Sun, UsersRound, Search, Menu } from 'lucide-react';
+import { BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag, LayoutDashboard, LogOut, Moon, Shield, Sparkles, Sun, UsersRound, Menu } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useAuth } from '../context/AuthContext';
 import { hasRole, roleLabels } from '../lib/rbac';

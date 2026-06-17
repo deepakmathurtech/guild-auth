@@ -14,7 +14,7 @@ export function MemberSearch({ onSelect, selectedId }: Props) {
 
   useEffect(() => {
     // Only load members and contributors for assignment
-    listRecords<GuildUser>('users', [
+    listRecords('users', [
       where('archiveStatus', '==', 'active'),
       where('role', 'in', ['member', 'contributor'])
     ]).then(setUsers);

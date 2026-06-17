@@ -69,7 +69,7 @@ export function OrganizationListPage() {
                   <td><strong>{org.name}</strong></td>
                   <td>{org.category}</td>
                   <td>{org.city}</td>
-                  <td><StatusBadge status={{org.currentStatus}} /></td>
+                  <td><StatusBadge status={org.currentStatus} /></td>
                   <td>{org.contactPerson}</td>
                   <td>
                     <button className="ghost" onClick={() => navigate(`/organizations/${org.id}`)}>View Details</button>

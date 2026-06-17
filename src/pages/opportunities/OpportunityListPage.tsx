@@ -71,7 +71,7 @@ export function OpportunityListPage() {
                   <td><strong>{opp.title}</strong></td>
                   <td>{opp.category}</td>
                   <td>{opp.assignedMembers?.length || 0} Members</td>
-                  <td><StatusBadge status={{opp.status}} /></td>
+                  <td><StatusBadge status={opp.status} /></td>
                   <td>?{opp.estimatedRevenue}</td>
                   <td>
                     <button className="ghost" onClick={() => navigate(`/opportunities/${opp.id}`)}>Manage</button>

@@ -113,7 +113,7 @@ export function NeedDetailsPage() {
                 <div key={opp.id} className="border border-gray-700 p-4 rounded bg-gray-800">
                   <div className="flex justify-between">
                     <strong>{opp.title}</strong>
-                    <StatusBadge status={{opp.status}} />
+                    <StatusBadge status={opp.status} />
                   </div>
                   <p className="text-sm mt-1">{opp.category}</p>
                   <button className="ghost mt-2" onClick={() => navigate(`/opportunities/${opp.id}`)}>View Opportunity &rarr;</button>

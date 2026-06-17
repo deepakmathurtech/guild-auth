@@ -34,7 +34,7 @@ export function SubmissionQueuePage() {
                 <tr key={sub.id}>
                   <td><strong>{sub.questTitle || sub.questId}</strong></td>
                   <td>{sub.memberId}</td>
-                  <td><StatusBadge status={{sub.status}} /></td>
+                  <td><StatusBadge status={sub.status} /></td>
                   <td>{new Date(sub.createdAt).toLocaleDateString()}</td>
                   <td><button className="ghost" onClick={() => navigate(`/submissions/${sub.id}`)}>Review</button></td>
                 </tr>

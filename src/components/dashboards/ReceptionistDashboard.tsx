@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { StatusBadge } from '../StatusBadge';
 import { Bell, BriefcaseBusiness, Calendar, CheckCircle, ClipboardCheck, Sparkles } from 'lucide-react';
-import type { ActivityLog, DashboardMetric, Need, Opportunity, Organization, QuestSubmission, RevenueEvent, VerificationRecord, Quest, Outcome } from '../../types/guild';
+import type { ActivityLog, Need, Opportunity, Organization, QuestSubmission, RevenueEvent, VerificationRecord, Quest, Outcome } from '../../types/guild';
 
 interface Props {
   organizations: Organization[];
@@ -17,7 +17,7 @@ interface Props {
 }
 
 export function ReceptionistDashboard({ opportunities, quests, submissions, outcomes }: Props) {
-  const { profile } = useAuth();
+  
   const navigate = useNavigate();
   
   const pendingSubs = submissions.filter(s => s.status === 'pending');

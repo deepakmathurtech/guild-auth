@@ -1,8 +1,8 @@
-import { createLedgerRecord, updateLedgerRecord, getRecord, listRecords } from '../lib/repository';
+import { createLedgerRecord, updateLedgerRecord, getRecord, listRecords, logActivity } from '../lib/repository';
 import type { GuildUser, Need, Opportunity, Quest, QuestSubmission } from '../types/guild';
 import { where, increment } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 
 /**
  * workflowService.ts
@@ -23,6 +23,11 @@ export async function convertNeedToOpportunity(
     needId: need.id,
     organizationId: need.organizationId,
     organizationName: need.organizationName,
+    title: opportunityData.title || '',
+    category: opportunityData.category || 'General',
+    description: opportunityData.description || need.description || '',
+    skillsRequired: opportunityData.skillsRequired || [],
+    estimatedRevenue: opportunityData.estimatedRevenue || need.estimatedValue || 0,
     status: 'draft',
     applicants: [],
     assignedMembers: [],
@@ -48,6 +53,15 @@ export async function spawnQuestForOpportunity(
     opportunityId: opportunity.id,
     needId: opportunity.needId,
     organizationId: opportunity.organizationId,
+    title: questData.title || '',
+    category: questData.category || opportunity.category || 'General',
+    description: questData.description || opportunity.description || '',
+    difficulty: questData.difficulty || 'medium',
+    rewards: questData.rewards || '',
+    requirements: questData.requirements || '',
+    submissionMethod: questData.submissionMethod || 'link',
+    verificationMethod: questData.verificationMethod || 'manualReview',
+    reputationPoints: questData.reputationPoints || 10,
     isMandatory: questData.isMandatory !== undefined ? questData.isMandatory : true,
     status: 'active'
   }, profile, 'Quest Spawned');
@@ -76,7 +90,7 @@ export async function checkOpportunityCompletion(opportunityId: string, profile:
   const opp = await getRecord('opportunities', opportunityId);
   if (!opp || opp.status === 'completed') return;
 
-  const quests = await listRecords<Quest>('quests', [
+  const quests = await listRecords('quests', [
     where('opportunityId', '==', opportunityId),
     where('archiveStatus', '==', 'active')
   ]);
@@ -97,7 +111,7 @@ export async function checkOpportunityCompletion(opportunityId: string, profile:
       relatedOpportunityId: opp.id,
       organizationId: opp.organizationId,
       organizationName: opp.organizationName,
-      participants: [...new Set(quests.map(q => q.ownerId).filter(Boolean))],
+      participants: [...new Set(quests.map(q => q.ownerId).filter(Boolean))] as string[],
       evidence: [],
       revenueGenerated: opp.estimatedRevenue || 0,
       verificationStatus: 'pending',
@@ -162,15 +176,14 @@ export async function approveSubmission(
         completedQuests: increment(1)
       });
       // We also log this manually since we bypassed the standard updateLedgerRecord to use increment
-      await createLedgerRecord('activityLogs', {
+      await logActivity({
         userId: profile.uid,
         userName: profile.fullName,
         action: `Reputation Awarded to ${submission.memberId}`,
-        time: new Date().toISOString(),
         relatedEntityType: 'users',
         relatedEntityId: submission.memberId
-      }, profile, 'Reputation Increment Logged', true); // Silent create to avoid circular
-      
+      }); 
+
       // Notify the member
       await createLedgerRecord('notifications', {
         userId: submission.memberId,

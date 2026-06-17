@@ -72,7 +72,7 @@ export function NeedListPage() {
                   <td><strong>{need.title}</strong></td>
                   <td>{need.organizationName}</td>
                   <td><span className={`badge priority-${need.priority}`}>{need.priority}</span></td>
-                  <td><StatusBadge status={{need.status}} /></td>
+                  <td><StatusBadge status={need.status} /></td>
                   <td>?{need.estimatedValue}</td>
                   <td>
                     <button className="ghost" onClick={() => navigate(`/needs/${need.id}`)}>View / Process</button>
