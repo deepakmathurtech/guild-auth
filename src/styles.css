@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #f8fafc;
+    --bg-alt: #f1f5f9;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+  }
+
+  :root[data-theme='dark'] {
+    --bg: #0f172a;
+    --bg-alt: #1e293b;
+    --card: #1e293b;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --border: #334155;
+    --primary: #3b82f6;
+    --primary-dark: #60a5fa;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+
+  button, input, textarea, select {
+    font: inherit;
+  }
+  
+  input, textarea, select {
+    @apply w-full border border-[var(--border)] rounded-md px-3 py-2 bg-[var(--card)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] transition-all;
+  }
+  
+  textarea {
+    @apply min-h-[110px] resize-y;
+  }
+
+  table {
+    @apply w-full border-collapse;
+  }
+  
+  th, td {
+    @apply p-3 border-b border-[var(--border)] text-left;
+  }
+  th {
+    @apply font-semibold text-[var(--muted)] text-sm;
+  }
+}
+
+@layer components {
+  .shell {
+    @apply min-h-screen flex flex-col md:grid md:grid-cols-[260px_minmax(0,1fr)];
+  }
+  
+  .sidebar {
+    @apply sticky top-0 h-screen p-5 border-r border-[var(--border)] bg-[var(--card)];
+  }
+
+  .main {
+    @apply min-w-0 p-4 md:p-8;
+  }
+  
+  .topbar {
+    @apply flex justify-between gap-4 items-center mb-6 pb-4 border-b border-[var(--border)];
+  }
+  
+  .top-actions {
+    @apply flex flex-wrap gap-2 items-center justify-end;
+  }
+
+  .brand {
+    @apply flex gap-3 items-center mb-8;
+  }
+  
+  .brand-mark {
+    @apply w-10 h-10 grid place-items-center rounded-lg bg-[var(--primary)] text-white font-bold text-xl;
+  }
+
+  .sidebar nav {
+    @apply grid gap-1;
+  }
+  
+  .sidebar a {
+    @apply flex gap-3 items-center px-4 py-2.5 rounded-lg text-[var(--muted)] hover:bg-[var(--bg-alt)] hover:text-[var(--text)] transition-colors;
+  }
+  
+  .sidebar a.active {
+    @apply bg-[var(--primary)]/10 text-[var(--primary)] font-medium;
+  }
+
+  /* Cards & Panels */
+  .panel, .hero-panel {
+    @apply bg-[var(--card)] border border-[var(--border)] rounded-xl p-5 shadow-sm;
+  }
+
+  .page-grid, .workbench {
+    @apply grid gap-6;
+  }
+  
+  .form-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+  }
+  
+  .form-grid label {
+    @apply grid gap-1.5 text-[var(--text)] font-medium text-sm;
+  }
+  
+  .span-2 {
+    @apply md:col-span-2;
+  }
+
+  /* Typography */
+  .eyebrow {
+    @apply text-[var(--primary)] uppercase tracking-wider text-xs font-bold mb-1;
+  }
+
+  /* Buttons */
+  .primary, .ghost {
+    @apply inline-flex gap-2 items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .primary {
+    @apply bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)];
+  }
+  
+  .ghost {
+    @apply bg-transparent text-[var(--text)] border border-[var(--border)] hover:bg-[var(--bg-alt)];
+  }
+  
+  .role-pill {
+    @apply inline-flex px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--card)] text-[var(--muted)] text-sm;
+  }
+
+  /* Responsive Cards for Tables */
+  .responsive-table {
+    @apply w-full;
+  }
+  
+  .responsive-table thead {
+    @apply hidden md:table-header-group;
+  }
+  
+  .responsive-table tr {
+    @apply flex flex-col border border-[var(--border)] rounded-lg mb-4 p-4 bg-[var(--card)] md:table-row md:border-0 md:mb-0 md:p-0 md:bg-transparent;
+  }
+  
+  .responsive-table td {
+    @apply flex justify-between items-center border-b-0 py-2 md:table-cell md:border-b border-[var(--border)] md:py-3;
+  }
+  
+  .responsive-table td::before {
+    content: attr(data-label);
+    @apply text-[var(--muted)] text-xs uppercase font-bold md:hidden mr-4;
+  }
+}

@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function role() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? userDoc().data.role : 'member'; }
+    function isAdmin() { return signedIn() && (request.auth.token.guildAdmin == true || role() == 'guildAdmin'); }
+    function isManager() { return isAdmin() || role() == 'guildManager'; }
+    function isReceptionist() { return isManager() || role() == 'receptionist'; }
+    function isContributor() { return isReceptionist() || role() == 'contributor'; }
+    function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function isPermanentLedgerWrite() { return !('archiveStatus' in resource.data) || request.resource.data.archiveStatus in ['active', 'archived']; }
+    function noPermanentDelete() { return false; }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (owns(userId) || isReceptionist());
+      allow create: if owns(userId) && request.resource.data.role in ['member', 'contributor', 'receptionist'];
+      allow update: if signedIn() && (owns(userId) || isAdmin()) && (!('role' in request.resource.data) || isAdmin() || request.resource.data.role == resource.data.role);
+      allow delete: if noPermanentDelete();
+    }
+
+    match /organizations/{id} {
+      allow read: if signedIn();
+      allow create, update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    match /needs/{id} {
+      allow read: if signedIn();
+      allow create, update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    match /opportunities/{id} {
+      allow read: if signedIn();
+      allow create, update: if isReceptionist() || (signedIn() && request.resource.data.applicants.hasAny([request.auth.uid]));
+      allow delete: if noPermanentDelete();
+    }
+
+    match /quests/{id} {
+      allow read: if signedIn();
+      allow create, update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    match /questSubmissions/{id} {
+      allow read: if signedIn() && (resource.data.memberId == request.auth.uid || isReceptionist());
+      allow create: if signedIn() && request.resource.data.memberId == request.auth.uid;
+      allow update: if isReceptionist() || (signedIn() && resource.data.memberId == request.auth.uid && resource.data.status == 'pending');
+      allow delete: if noPermanentDelete();
+    }
+
+    match /outcomes/{id} {
+      allow read: if signedIn();
+      allow create, update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    match /verifications/{id} {
+      allow read: if signedIn();
+      allow create, update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    match /revenueEvents/{id} {
+      allow read: if isReceptionist();
+      allow create, update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    match /knowledgeArchive/{id} {
+      allow read: if signedIn();
+      allow create: if isContributor();
+      allow update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    match /activityLogs/{id} {
+      allow read: if isManager();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
+    match /notifications/{id} {
+      allow read, update: if signedIn() && (resource.data.userId == request.auth.uid || isReceptionist());
+      allow create: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    match /guildConfig/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
