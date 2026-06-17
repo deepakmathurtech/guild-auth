@@ -13,6 +13,7 @@ import { NeedDetailsPage } from './pages/needs/NeedDetailsPage';
 import { OpportunityListPage } from './pages/opportunities/OpportunityListPage';
 import { OpportunityDetailsPage } from './pages/opportunities/OpportunityDetailsPage';
 import { QuestListPage } from './pages/quests/QuestListPage';
+import { QuestRegistrationWizard } from './pages/quests/QuestRegistrationWizard';
 import { QuestDetailsPage } from './pages/quests/QuestDetailsPage';
 import { SubmissionQueuePage } from './pages/submissions/SubmissionQueuePage';
 import { SubmissionReviewPage } from './pages/submissions/SubmissionReviewPage';
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
           { path: 'opportunities/:id', element: <OpportunityDetailsPage /> },
           
           { path: 'quests', element: <QuestListPage /> },
+          { path: 'quests/register', element: <QuestRegistrationWizard /> },
           { path: 'quests/:id', element: <QuestDetailsPage /> },
           
           { path: 'submissions', element: <SubmissionQueuePage /> },

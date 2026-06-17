@@ -23,6 +23,7 @@ export function ReceptionistDashboard({ organizations, needs, opportunities, que
   const needsWaiting = needs.filter(n => ['open', 'matching'].includes(n.status));
   const orgsFollowUp = organizations.filter(o => o.nextFollowUpAt && new Date(o.nextFollowUpAt).getTime() <= new Date().getTime());
   const draftOutcomes = outcomes.filter(o => o.verificationStatus === 'pending');
+  const incompleteQuests = quests.filter(q => (q.completenessScore || 0) < 100 && q.status !== 'archived');
   
   return (
     <section className="workbench max-w-5xl mx-auto">
@@ -60,9 +61,9 @@ export function ReceptionistDashboard({ organizations, needs, opportunities, que
           <section className="panel p-0 overflow-hidden">
             <div className="bg-yellow-500/10 border-b border-[var(--border)] p-4 flex justify-between items-center">
               <h3 className="text-yellow-700 dark:text-yellow-500 font-bold flex items-center gap-2"><Bell size={18} /> My Next Actions</h3>
-              <StatusBadge status={(pendingSubs.length + needsWaiting.length + orgsFollowUp.length + draftOutcomes.length) + ' tasks'} />
+              <StatusBadge status={(pendingSubs.length + needsWaiting.length + orgsFollowUp.length + draftOutcomes.length + incompleteQuests.length) + ' tasks'} />
             </div>
-            <div className="p-0">
+            <div className="p-0 max-h-[500px] overflow-y-auto">
               {orgsFollowUp.slice(0, 3).map(org => (
                 <div key={org.id} className="border-b border-[var(--border)] last:border-0 p-4 hover:bg-[var(--bg-alt)] flex justify-between items-center cursor-pointer transition-colors" onClick={() => navigate(`/organizations/${org.id}`)}>
                   <div>
@@ -100,7 +101,17 @@ export function ReceptionistDashboard({ organizations, needs, opportunities, que
                 </div>
               ))}
 
-              {(pendingSubs.length + needsWaiting.length + orgsFollowUp.length + draftOutcomes.length) === 0 && (
+              {incompleteQuests.slice(0, 5).map(quest => (
+                <div key={quest.id} className="border-b border-red-500/30 p-4 bg-red-900/10 hover:bg-red-900/20 flex justify-between items-center cursor-pointer transition-colors" onClick={() => navigate(`/quests/${quest.id}`)}>
+                  <div>
+                    <strong className="block text-sm text-red-400">Incomplete: {quest.guildQuestId || quest.title}</strong>
+                    <span className="text-xs text-red-300">Missing: {quest.missingActions?.[0] || 'Operational Data'}</span>
+                  </div>
+                  <button className="secondary text-xs px-3 py-1">Fix</button>
+                </div>
+              ))}
+
+              {(pendingSubs.length + needsWaiting.length + orgsFollowUp.length + draftOutcomes.length + incompleteQuests.length) === 0 && (
                 <div className="p-8 text-center text-[var(--muted)]">Inbox Zero! You are all caught up.</div>
               )}
             </div>
@@ -130,6 +141,10 @@ export function ReceptionistDashboard({ organizations, needs, opportunities, que
                <div className="flex justify-between items-center">
                  <span className="text-sm font-medium">Draft Outcomes</span>
                  <strong className="text-lg">{draftOutcomes.length}</strong>
+               </div>
+               <div className="flex justify-between items-center border-t border-[var(--border)] pt-2 mt-2">
+                 <span className="text-sm font-medium text-red-400">Incomplete Quests</span>
+                 <strong className="text-lg text-red-500">{incompleteQuests.length}</strong>
                </div>
                <button className="w-full ghost text-sm mt-2" onClick={() => navigate('/organizations')}>View Organizations Directory &rarr;</button>
             </div>

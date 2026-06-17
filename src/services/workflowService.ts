@@ -83,7 +83,7 @@ export async function spawnQuestForOpportunity(
     reputationPoints: questData.reputationPoints || 10,
     isMandatory: questData.isMandatory !== undefined ? questData.isMandatory : true,
     guildQuestId: await generateGuildQuestId('LDH', opportunity.category || 'GEN'),
-    status: 'active'
+    status: 'open'
   }, profile, 'Quest Spawned');
 
   if (quest.ownerId) {

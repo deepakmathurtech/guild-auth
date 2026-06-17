@@ -2,19 +2,16 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { limit, orderBy, where } from 'firebase/firestore';
-import { subscribeRecords, createLedgerRecord, getRecord } from '../../lib/repository';
-import { spawnQuestForOpportunity, generateGuildQuestId } from '../../services/workflowService';
+import { subscribeRecords } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
-import type { Quest, Opportunity } from '../../types/guild';
+import type { Quest } from '../../types/guild';
 import { Filter, Search, Plus } from 'lucide-react';
 
 export function QuestListPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile } = useAuth();
   
   const [quests, setQuests] = useState<Quest[]>([]);
-  const [showCreate, setShowCreate] = useState(location.state?.oppId ? true : false);
   
   // Advanced Filter State
   const [searchId, setSearchId] = useState('');
@@ -22,21 +19,6 @@ export function QuestListPage() {
   const [filterClass, setFilterClass] = useState('');
   const [filterPaid, setFilterPaid] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  
-  const [form, setForm] = useState({
-    title: location.state?.title || '',
-    description: '',
-    category: '',
-    difficulty: 'easy' as Quest['difficulty'],
-    rewards: '',
-    reputationPoints: 0,
-    requirements: '',
-    submissionMethod: 'Link Submission',
-    verificationMethod: 'manualReview' as Quest['verificationMethod'],
-    isMandatory: true,
-    classification: 'Internal Guild' as Quest['classification'],
-    isPaid: false
-  });
 
   useEffect(() => {
     return subscribeRecords('quests', setQuests, [
@@ -58,35 +40,6 @@ export function QuestListPage() {
     });
   }, [quests, searchId, searchTitle, filterClass, filterPaid, filterStatus]);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!profile) return;
-    try {
-      if (location.state?.oppId) {
-        const opp = await getRecord('opportunities', location.state.oppId) as Opportunity;
-        if (opp) {
-          await spawnQuestForOpportunity(opp, form, profile);
-        } else {
-          throw new Error('Linked Opportunity not found.');
-        }
-      } else {
-        const newId = await generateGuildQuestId('LDH', form.category || 'GEN');
-        await createLedgerRecord('quests', {
-          ...form,
-          guildQuestId: newId,
-          assignedReceptionistId: profile.uid,
-          assignedReceptionistName: profile.fullName || profile.email,
-          status: 'active'
-        }, profile, 'Quest Created');
-      }
-
-      setShowCreate(false);
-      navigate('.', { replace: true, state: {} });
-    } catch (err: any) {
-      alert(err.message || 'Save failed.');
-    }
-  }
-
   return (
     <section className="page-grid max-w-7xl mx-auto">
       <div className="hero-panel flex justify-between items-start">
@@ -95,47 +48,10 @@ export function QuestListPage() {
           <h2>Quest Registry</h2>
           <p>The official, searchable database of all Guild Quests.</p>
         </div>
-        <button className="primary flex items-center gap-2" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? 'Close Form' : <><Plus size={18}/> Create Quest</>}
+        <button className="primary flex items-center gap-2" onClick={() => navigate('/quests/register', { state: location.state })}>
+          <Plus size={18}/> Register Quest
         </button>
       </div>
-
-      {showCreate && (
-        <form className="panel form-grid bg-[var(--card)] border border-blue-500/50 shadow-xl" onSubmit={submit}>
-          <h3 className="span-2 text-blue-400">Initialize New Quest Record</h3>
-          {location.state?.oppId && <p className="span-2 text-green-400 text-sm">Linked to Opportunity ID: {location.state.oppId}</p>}
-          <label className="span-2">Title <input required value={form.title} onChange={e => setForm({...form, title: e.target.value})} /></label>
-          <label className="span-2">Description <textarea required value={form.description} onChange={e => setForm({...form, description: e.target.value})} /></label>
-          
-          <label>Category <input required value={form.category} onChange={e => setForm({...form, category: e.target.value})} placeholder="e.g. TECH, DESG" /></label>
-          <label>Classification 
-            <select value={form.classification} onChange={e => setForm({...form, classification: e.target.value as any})}>
-               <option>Internal Guild</option><option>External Client</option><option>Community Service</option>
-               <option>Revenue Generating</option><option>Training</option><option>Partnership</option><option>Research</option><option>Emergency</option>
-            </select>
-          </label>
-          <label>Difficulty 
-            <select value={form.difficulty} onChange={e => setForm({...form, difficulty: e.target.value as any})}>
-              <option>easy</option><option>medium</option><option>hard</option><option>legendary</option>
-            </select>
-          </label>
-          <label>Reputation Points <input type="number" value={form.reputationPoints} onChange={e => setForm({...form, reputationPoints: Number(e.target.value)})} /></label>
-          
-          <label className="flex items-center space-x-2 bg-[var(--bg-alt)] p-2 rounded border border-[var(--border)]">
-            <input type="checkbox" checked={form.isPaid} onChange={e => setForm({...form, isPaid: e.target.checked})} />
-            <span>This is a Paid Quest</span>
-          </label>
-          <label className="flex items-center space-x-2 bg-[var(--bg-alt)] p-2 rounded border border-[var(--border)]">
-            <input type="checkbox" checked={form.isMandatory} onChange={e => setForm({...form, isMandatory: e.target.checked})} />
-            <span>Mandatory for Opportunity completion</span>
-          </label>
-
-          <div className="span-2 flex space-x-2 mt-4 pt-4 border-t border-[var(--border)]">
-            <button className="primary" type="submit">Deploy Quest</button>
-            <button className="ghost" type="button" onClick={() => setShowCreate(false)}>Cancel</button>
-          </div>
-        </form>
-      )}
 
       {/* Advanced Filters */}
       <div className="panel p-4 bg-[var(--bg-alt)] mb-6">

@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRecord, updateLedgerRecord, addInteraction, subscribeRecords } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
-import type { Organization, Need, InteractionRecord } from '../../types/guild';
+import type { Organization, Need, InteractionRecord, Quest } from '../../types/guild';
 import { where, orderBy } from 'firebase/firestore';
+import { StatusBadge } from '../../components/StatusBadge';
 
 export function OrganizationDetailsPage() {
   const { id } = useParams();
@@ -13,6 +14,7 @@ export function OrganizationDetailsPage() {
   const [org, setOrg] = useState<Organization | null>(null);
   const [needs, setNeeds] = useState<Need[]>([]);
   const [interactions, setInteractions] = useState<InteractionRecord[]>([]);
+  const [quests, setQuests] = useState<Quest[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Partial<Organization>>({});
   
@@ -32,10 +34,12 @@ export function OrganizationDetailsPage() {
     
     const unsubNeeds = subscribeRecords('needs', setNeeds, [where('organizationId', '==', id), where('archiveStatus', '==', 'active')]);
     const unsubInteractions = subscribeRecords('interactions', setInteractions, [where('archiveStatus', '==', 'active')]);
+    const unsubQuests = subscribeRecords('quests', setQuests, [where('organizationId', '==', id), where('archiveStatus', '==', 'active')]);
     
     return () => {
       unsubNeeds();
       unsubInteractions();
+      unsubQuests();
     };
   }, [id]);
 
@@ -83,7 +87,18 @@ export function OrganizationDetailsPage() {
           <h2>{org.name}</h2>
           <p>{org.city} &middot; {org.contactPerson}</p>
         </div>
-        <button className="ghost" onClick={() => navigate('/organizations')}>&larr; Back to List</button>
+        <div className="flex space-x-2">
+          <button className="primary" onClick={() => navigate('/quests/register', { state: { orgId: org.id, orgName: org.name } })}>Register Quest</button>
+          <button className="ghost" onClick={() => navigate('/organizations')}>&larr; Back to List</button>
+        </div>
+      </div>
+      
+      {/* ORGANIZATION HEALTH METRICS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 bg-[var(--card)] p-4 rounded border border-[var(--border)]">
+         <div><p className="text-[var(--muted)] text-xs uppercase mb-1">Total Quests</p><p className="font-bold">{quests.length}</p></div>
+         <div><p className="text-[var(--muted)] text-xs uppercase mb-1">Completed Quests</p><p className="font-bold text-green-400">{quests.filter(q => q.status === 'completed' || q.status === 'closed').length}</p></div>
+         <div><p className="text-[var(--muted)] text-xs uppercase mb-1">Revenue Generated</p><p className="font-bold text-yellow-400">₹{quests.reduce((acc, q) => acc + (q.paymentAmount || 0), 0)}</p></div>
+         <div><p className="text-[var(--muted)] text-xs uppercase mb-1">Trust Level</p><p className="font-bold"><span className="role-pill">{org.trustLevel || 'new'}</span></p></div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -169,6 +184,30 @@ export function OrganizationDetailsPage() {
                   </tr>
                 ))}
                 {needs.length === 0 && <tr><td colSpan={4} className="text-center">No needs logged for this organization yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        {/* QUEST HISTORY */}
+        <div className="panel md:col-span-2">
+          <div className="flex justify-between items-center mb-4">
+            <h3>Quest History (Work Timeline)</h3>
+          </div>
+          <div className="table-wrap">
+            <table className="responsive-table">
+              <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Financial</th><th>Actions</th></tr></thead>
+              <tbody>
+                {quests.map(quest => (
+                  <tr key={quest.id}>
+                    <td className="font-mono text-blue-400">{quest.guildQuestId}</td>
+                    <td>{quest.title}</td>
+                    <td><StatusBadge status={quest.status} /></td>
+                    <td>{quest.isPaid ? <span className="text-green-400">Paid (₹{quest.paymentAmount})</span> : 'Unpaid'}</td>
+                    <td><button className="ghost" onClick={() => navigate(`/quests/${quest.id}`)}>Open Record</button></td>
+                  </tr>
+                ))}
+                {quests.length === 0 && <tr><td colSpan={5} className="text-center">No quests logged for this organization yet.</td></tr>}
               </tbody>
             </table>
           </div>

@@ -116,7 +116,7 @@ export interface Opportunity extends AuditFields {
   status: OpportunityStatus;
 }
 
-export type QuestStatus = 'active' | 'completed' | 'cancelled' | 'archived' | 'closed';
+export type QuestStatus = 'draft' | 'open' | 'assigned' | 'inProgress' | 'underReview' | 'completed' | 'closed' | 'cancelled' | 'archived';
 
 export type QuestClassification = 'Internal Guild' | 'External Client' | 'Community Service' | 'Revenue Generating' | 'Training' | 'Partnership' | 'Research' | 'Emergency';
 export type VerificationLevel = 'Self Verified' | 'Receptionist Verified' | 'Manager Verified' | 'External Verified';
@@ -138,6 +138,10 @@ export interface Quest extends AuditFields {
   organizationId?: string;
   organizationName?: string;
   
+  // Auditing / Health
+  completenessScore?: number;
+  missingActions?: string[];
+
   // Core Information
   title: string;
   description: string;
@@ -263,6 +267,7 @@ export interface VerificationRecord extends AuditFields {
 export interface Outcome extends AuditFields {
   id: string;
   title: string;
+  questId?: string;
   relatedOpportunityId: string;
   participants: string[];
   organizationId?: string;
@@ -276,6 +281,7 @@ export interface Outcome extends AuditFields {
 export interface RevenueEvent extends AuditFields {
   id: string;
   source: string;
+  questId?: string;
   opportunityId?: string;
   organizationId?: string;
   organizationName?: string;

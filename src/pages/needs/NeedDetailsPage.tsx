@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRecord, updateLedgerRecord, subscribeRecords } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
-import type { Need, Opportunity } from '../../types/guild';
+import type { Need, Opportunity, Quest } from '../../types/guild';
 import { where } from 'firebase/firestore';
 
 export function NeedDetailsPage() {
@@ -13,6 +13,7 @@ export function NeedDetailsPage() {
   
   const [need, setNeed] = useState<Need | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [quests, setQuests] = useState<Quest[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Partial<Need>>({});
 
@@ -24,8 +25,10 @@ export function NeedDetailsPage() {
         setForm(data);
       }
     });
+    const unsubOpps = subscribeRecords('opportunities', setOpportunities, [where('needId', '==', id), where('archiveStatus', '==', 'active')]);
+    const unsubQuests = subscribeRecords('quests', setQuests, [where('needId', '==', id), where('archiveStatus', '==', 'active')]);
     
-    return subscribeRecords('opportunities', setOpportunities, [where('needId', '==', id), where('archiveStatus', '==', 'active')]);
+    return () => { unsubOpps(); unsubQuests(); };
   }, [id]);
 
   async function saveEdits(e: React.FormEvent) {
@@ -119,6 +122,30 @@ export function NeedDetailsPage() {
                   <button className="ghost mt-2" onClick={() => navigate(`/opportunities/${opp.id}`)}>View Opportunity &rarr;</button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="panel md:col-span-2">
+          <h3>Work Generated (Quests)</h3>
+          {quests.length === 0 ? (
+            <p className="text-[var(--muted)]">No quests generated from this need yet.</p>
+          ) : (
+            <div className="table-wrap mt-4">
+              <table className="responsive-table">
+                <thead><tr><th>Quest ID</th><th>Title</th><th>Status</th><th>Completeness</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {quests.map(quest => (
+                    <tr key={quest.id}>
+                      <td className="font-mono text-blue-400">{quest.guildQuestId}</td>
+                      <td>{quest.title}</td>
+                      <td><StatusBadge status={quest.status} /></td>
+                      <td>{quest.completenessScore || 0}%</td>
+                      <td><button className="ghost text-xs" onClick={() => navigate(`/quests/${quest.id}`)}>Open Record</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

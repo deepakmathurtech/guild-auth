@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRecord, subscribeRecords, updateLedgerRecord } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
-import type { Quest, QuestSubmission, GuildUser } from '../../types/guild';
+import type { Quest, QuestSubmission, GuildUser, Outcome, KnowledgeRecord, RevenueEvent, Need, Opportunity } from '../../types/guild';
 import { where } from 'firebase/firestore';
 import { MemberSearch } from '../../components/MemberSearch';
 import { ChevronDown, ChevronRight, FileText, CheckCircle, IndianRupee, ShieldCheck, History, BookOpen, Building, MapPin, Users } from 'lucide-react';
@@ -32,11 +32,27 @@ export function QuestDetailsPage() {
   
   const [quest, setQuest] = useState<Quest | null>(null);
   const [submissions, setSubmissions] = useState<QuestSubmission[]>([]);
+  const [outcomes, setOutcomes] = useState<Outcome[]>([]);
+  const [knowledge, setKnowledge] = useState<KnowledgeRecord[]>([]);
+  const [revenue, setRevenue] = useState<RevenueEvent[]>([]);
+  const [linkedNeed, setLinkedNeed] = useState<Need | null>(null);
+  const [linkedOpp, setLinkedOpp] = useState<Opportunity | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    getRecord('quests', id).then(data => setQuest(data as Quest));
-    return subscribeRecords('questSubmissions', setSubmissions, [where('questId', '==', id), where('archiveStatus', '==', 'active')]);
+    getRecord('quests', id).then(async (data) => {
+      const q = data as Quest;
+      setQuest(q);
+      if (q.needId) getRecord('needs', q.needId).then(n => setLinkedNeed(n as Need));
+      if (q.opportunityId) getRecord('opportunities', q.opportunityId).then(o => setLinkedOpp(o as Opportunity));
+    });
+    
+    const unsubSubs = subscribeRecords('questSubmissions', setSubmissions, [where('questId', '==', id), where('archiveStatus', '==', 'active')]);
+    const unsubOuts = subscribeRecords('outcomes', setOutcomes, [where('questId', '==', id), where('archiveStatus', '==', 'active')]);
+    const unsubKnow = subscribeRecords('knowledgeBase', setKnowledge, [where('questId', '==', id), where('archiveStatus', '==', 'active')]);
+    const unsubRev = subscribeRecords('revenueEvents', setRevenue, [where('questId', '==', id), where('archiveStatus', '==', 'active')]);
+    
+    return () => { unsubSubs(); unsubOuts(); unsubKnow(); unsubRev(); };
   }, [id]);
 
   async function handleUpdateField(field: keyof Quest, value: any) {
@@ -103,6 +119,25 @@ export function QuestDetailsPage() {
             <p className="font-semibold">{quest.knowledgeSubmitted ? 'Submitted' : 'Pending'}</p>
           </div>
         </div>
+        
+        {/* RECEPTIONIST WORKFLOW AUDIT */}
+        <div className="mt-6 pt-4 border-t border-blue-500/30">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="font-bold text-[var(--muted)]">Quest Completeness Score</span>
+            <span className="font-bold text-blue-400">{quest.completenessScore || 0}%</span>
+          </div>
+          <div className="w-full bg-gray-900 rounded-full h-2.5 mb-4">
+            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${Math.min(quest.completenessScore || 0, 100)}%` }}></div>
+          </div>
+          {quest.missingActions && quest.missingActions.length > 0 && (
+            <div className="bg-red-900/30 border border-red-500/30 p-3 rounded text-sm">
+              <span className="font-bold text-red-400 uppercase text-xs">Missing Actions</span>
+              <ul className="list-disc pl-5 mt-1 text-red-200">
+                {quest.missingActions.map(action => <li key={action}>{action}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* SECTIONS */}
@@ -152,13 +187,26 @@ export function QuestDetailsPage() {
                <label className="block text-xs text-[var(--muted)] uppercase mb-1">Source Name</label>
                <input className="w-full text-sm" value={quest.sourceName || ''} onChange={e => setQuest({...quest, sourceName: e.target.value})} onBlur={e => handleUpdateField('sourceName', e.target.value)} />
              </div>
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Linked Organization ID</label>
-               <input className="w-full text-sm" disabled value={quest.organizationId || 'None'} />
+             
+             {/* BIDIRECTIONAL LINK DISPLAYS */}
+             <div className="col-span-1 md:col-span-2 mt-4 p-4 bg-[var(--bg-alt)] border border-[var(--border)] rounded">
+                <h4 className="font-bold text-sm mb-2">Linked Need</h4>
+                {linkedNeed ? (
+                  <div className="flex justify-between items-center text-sm">
+                    <span>{linkedNeed.title}</span>
+                    <button className="ghost text-xs" onClick={() => navigate(`/needs/${linkedNeed.id}`)}>Open &rarr;</button>
+                  </div>
+                ) : <p className="text-sm text-[var(--muted)]">No Need Linked</p>}
              </div>
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Linked Opportunity ID</label>
-               <input className="w-full text-sm" disabled value={quest.opportunityId || 'None'} />
+             
+             <div className="col-span-1 md:col-span-2 p-4 bg-[var(--bg-alt)] border border-[var(--border)] rounded">
+                <h4 className="font-bold text-sm mb-2">Linked Opportunity</h4>
+                {linkedOpp ? (
+                  <div className="flex justify-between items-center text-sm">
+                    <span>{linkedOpp.title}</span>
+                    <button className="ghost text-xs" onClick={() => navigate(`/opportunities/${linkedOpp.id}`)}>Open &rarr;</button>
+                  </div>
+                ) : <p className="text-sm text-[var(--muted)]">No Opportunity Linked</p>}
              </div>
           </div>
         </CollapsibleSection>
@@ -232,12 +280,23 @@ export function QuestDetailsPage() {
                <input type="number" className="w-full text-sm" value={quest.estimatedValue || 0} onChange={e => handleUpdateField('estimatedValue', Number(e.target.value))} />
              </div>
              <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Guild Revenue / Commission</label>
+               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Expected Guild Revenue</label>
                <input type="number" className="w-full text-sm" value={quest.guildRevenue || 0} onChange={e => handleUpdateField('guildRevenue', Number(e.target.value))} />
              </div>
              <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Member Payout</label>
+               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Expected Member Payout</label>
                <input type="number" className="w-full text-sm" value={quest.memberPayout || 0} onChange={e => handleUpdateField('memberPayout', Number(e.target.value))} />
+             </div>
+             
+             <div className="col-span-full mt-4 border-t border-[var(--border)] pt-4">
+                <h4 className="font-bold text-sm mb-2">Logged Revenue Events</h4>
+                {revenue.map(rev => (
+                  <div key={rev.id} className="flex justify-between items-center bg-[var(--bg-alt)] border border-[var(--border)] rounded p-2 mb-2 text-sm">
+                     <span>{rev.source}</span>
+                     <span className="font-bold text-green-400">₹{rev.amount}</span>
+                  </div>
+                ))}
+                {revenue.length === 0 && <p className="text-sm text-[var(--muted)]">No revenue logged yet.</p>}
              </div>
           </div>
         </CollapsibleSection>
@@ -313,6 +372,17 @@ export function QuestDetailsPage() {
                <textarea className="w-full text-sm" rows={3} value={quest.impactSummary || ''} onChange={e => setQuest({...quest, impactSummary: e.target.value})} onBlur={e => handleUpdateField('impactSummary', e.target.value)} />
              </div>
           </div>
+          
+          <div className="mt-6 border-t border-[var(--border)] pt-4">
+            <h4 className="font-bold text-sm mb-2">Logged Outcomes</h4>
+            {outcomes.map(out => (
+              <div key={out.id} className="flex justify-between items-center bg-[var(--bg-alt)] border border-[var(--border)] rounded p-2 mb-2 text-sm">
+                 <span>{out.title}</span>
+                 <StatusBadge status={out.verificationStatus} />
+              </div>
+            ))}
+            {outcomes.length === 0 && <p className="text-sm text-[var(--muted)]">No formal outcome documented yet.</p>}
+          </div>
         </CollapsibleSection>
 
         <CollapsibleSection title="8. Knowledge" icon={<BookOpen size={18}/>}>
@@ -321,12 +391,20 @@ export function QuestDetailsPage() {
                <input type="checkbox" checked={quest.knowledgeRequired || false} onChange={e => handleUpdateField('knowledgeRequired', e.target.checked)} />
                <span>Knowledge Entry Required for this Quest</span>
              </div>
-             <div className="flex items-center space-x-2 text-sm">
-               <input type="checkbox" checked={quest.knowledgeSubmitted || false} onChange={e => handleUpdateField('knowledgeSubmitted', e.target.checked)} />
-               <span>Knowledge Entry Submitted</span>
+             
+             <div className="border-t border-[var(--border)] pt-4">
+               <h4 className="font-bold text-sm mb-2">Knowledge Entries</h4>
+               {knowledge.map(k => (
+                 <div key={k.id} className="flex justify-between items-center bg-[var(--bg-alt)] border border-[var(--border)] rounded p-2 mb-2 text-sm">
+                    <span>{k.title}</span>
+                    <span className="role-pill">{k.type}</span>
+                 </div>
+               ))}
+               {knowledge.length === 0 && <p className="text-sm text-[var(--muted)]">No knowledge entries submitted.</p>}
              </div>
+             
              <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Lessons Learned</label>
+               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Lessons Learned (Direct)</label>
                <textarea className="w-full text-sm" rows={3} value={quest.lessonsLearned || ''} onChange={e => setQuest({...quest, lessonsLearned: e.target.value})} onBlur={e => handleUpdateField('lessonsLearned', e.target.value)} />
              </div>
            </div>

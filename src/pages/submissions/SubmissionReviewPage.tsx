@@ -67,7 +67,7 @@ export function SubmissionReviewPage() {
         <div>
           <p className="eyebrow">Submission Review</p>
           <h2>{sub.questTitle || sub.questId}</h2>
-          <p>Submitted by: {sub.memberId}</p>
+          <p>Quest ID: <button className="ghost text-blue-400 p-0 h-auto" onClick={() => navigate(`/quests/${sub.questId}`)}>{sub.questId}</button> &middot; Submitted by: {sub.memberId}</p>
         </div>
         <button className="ghost" onClick={() => navigate('/submissions')}>&larr; Back to Queue</button>
       </div>
