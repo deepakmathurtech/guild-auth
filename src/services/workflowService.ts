@@ -306,7 +306,15 @@ export async function approveUserRole(
   reason: string,
   profile: GuildUser
 ) {
-  if (roleWeight[profile.role] < 4) throw new Error('Unauthorized for role promotion');
+  const isFounder = profile.role === 'founder' || profile.role === 'guildFounder';
+  
+  if (!isFounder && roleWeight[profile.role] <= roleWeight[newRole]) {
+    throw new Error('Unauthorized for this role promotion (Hierarchy Violation)');
+  }
+
+  if (!isFounder && roleWeight[profile.role] < 4) {
+    throw new Error('Unauthorized for role promotion');
+  }
   
   await updateLedgerRecord('users', targetUserId, {
     role: newRole,

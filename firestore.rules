@@ -10,7 +10,7 @@ service cloud.firestore {
     function targetJuris() { return resource.data.jurisdiction; }
     function incomingJuris() { return request.resource.data.jurisdiction; }
     
-    function isFounder() { return signedIn() && role() == 'guildFounder'; }
+    function isFounder() { return signedIn() && (role() == 'guildFounder' || role() == 'founder'); }
     function isCentralMaster() { return isFounder() || role() == 'centralGuildMaster'; }
     
     function isStateMaster() { 

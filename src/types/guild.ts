@@ -1,4 +1,25 @@
-export type GuildRole = 'applicant' | 'member' | 'contributor' | 'receptionist' | 'cityGuildMaster' | 'stateGuildMaster' | 'centralGuildMaster' | 'guildFounder';
+export type GuildRole = 
+  | 'applicant' 
+  | 'member' 
+  | 'contributor' 
+  | 'receptionistCandidate' 
+  | 'receptionist' 
+  | 'cityGuildMaster' 
+  | 'stateGuildMaster' 
+  | 'centralGuildMaster' 
+  | 'nationalGuildMaster' 
+  | 'guildFounder'
+  | 'founder';
+
+export type UserStatus = 
+  | 'active' 
+  | 'onLeave' 
+  | 'inactive' 
+  | 'suspended' 
+  | 'resigned' 
+  | 'removed' 
+  | 'archived';
+
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
 export type ArchiveStatus = 'active' | 'archived';
 export type OrganizationStatus = 'new' | 'contacted' | 'active' | 'partner' | 'inactive';
@@ -7,6 +28,14 @@ export type NeedStatus = 'open' | 'matching' | 'assigned' | 'inProgress' | 'comp
 export type OpportunityStatus = 'draft' | 'open' | 'matching' | 'assigned' | 'inProgress' | 'completed' | 'archived';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface SuccessionPlan {
+  primaryHolderId: string;
+  backupHolderId?: string;
+  emergencyHolderId?: string;
+  updatedAt: string;
+  updatedBy: string;
+}
 
 export interface Jurisdiction {
   countryId: string;
@@ -33,7 +62,12 @@ export type LedgerCollection =
   | 'rankReviews'
   | 'guildRegions'
   | 'guildStates'
-  | 'guildCities';
+  | 'guildCities'
+  | 'successionPlans'
+  | 'transferRecords'
+  | 'leaveRecords'
+  | 'escalationRecords'
+  | 'disputeRecords';
 
 export interface AuditFields {
   createdBy: string;
@@ -52,6 +86,7 @@ export interface GuildUser extends AuditFields {
   phone?: string;
   city?: string;
   role: GuildRole;
+  status: UserStatus;
   contactInformation?: string;
   skills: string[];
   interests: string[];
@@ -65,6 +100,55 @@ export interface GuildUser extends AuditFields {
   verifiedOutcomes: number;
   revenueEarned: number;
   activityHistory: string[];
+  successionPlan?: SuccessionPlan;
+  recruitmentStep?: string;
+  availability?: string;
+  emergencyContact?: string;
+  preferredRole?: string;
+  referralSource?: string;
+  lastActiveAt?: string;
+}
+
+export interface TransferRecord extends AuditFields {
+  id: string;
+  sourceUserId: string;
+  targetUserId: string;
+  entityTypes: LedgerCollection[];
+  entityIds: string[];
+  reason: string;
+  status: 'pending' | 'completed' | 'failed';
+}
+
+export interface LeaveRecord extends AuditFields {
+  id: string;
+  userId: string;
+  startDate: string;
+  endDate?: string;
+  type: 'sick' | 'vacation' | 'sabbatical' | 'emergency';
+  delegatedToId?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+}
+
+export interface EscalationRecord extends AuditFields {
+  id: string;
+  entityType: LedgerCollection;
+  entityId: string;
+  fromRole: GuildRole;
+  toRole: GuildRole;
+  reason: string;
+  status: 'open' | 'resolved';
+}
+
+export interface DisputeRecord extends AuditFields {
+  id: string;
+  category: 'verification' | 'payment' | 'promotion' | 'ownership' | 'conduct';
+  entityId?: string;
+  reporterId: string;
+  accusedId?: string;
+  description: string;
+  evidence: string[];
+  status: 'open' | 'investigating' | 'resolved' | 'dismissed';
+  resolution?: string;
 }
 
 export interface Organization extends AuditFields {

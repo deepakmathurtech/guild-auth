@@ -1,18 +1,20 @@
 import { StatusBadge } from '../../components/StatusBadge';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { limit, orderBy, where } from 'firebase/firestore';
 import { subscribeRecords } from '../../lib/repository';
 import type { Organization } from '../../types/guild';
 import { OrganizationCreateForm } from './OrganizationCreateForm';
 import { useAuth } from '../../context/AuthContext';
+import { EmptyState } from '../../components/EmptyState';
 
 export function OrganizationListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile } = useAuth();
   
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(Boolean(location.state?.showCreate));
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -20,7 +22,7 @@ export function OrganizationListPage() {
   useEffect(() => {
     if (!profile) return;
     const base = [where('archiveStatus', '==', 'active')];
-    if (['guildFounder', 'centralGuildMaster'].includes(profile.role)) {
+    if (['guildFounder', 'centralGuildMaster', 'founder'].includes(profile.role)) {
        // National see all
     } else if (profile.role === 'stateGuildMaster') {
        base.push(where('jurisdiction.stateId', '==', profile.jurisdiction.stateId));
@@ -46,10 +48,11 @@ export function OrganizationListPage() {
 
   return (
     <section className="workbench">
-      <div className="panel intro flex justify-between items-start">
+      <div className="panel intro flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="eyebrow">Organization Management</p>
           <h2>Manage Guild Partners</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">Register organizations, track relationship status, and keep follow-ups visible for receptionists.</p>
         </div>
         <button className="primary" onClick={() => setShowCreate(!showCreate)}>
           {showCreate ? 'Close Form' : 'Add Organization'}
@@ -90,7 +93,7 @@ export function OrganizationListPage() {
                 </tr>
               ))}
               {visible.length === 0 && (
-                 <tr><td colSpan={6} className="text-center py-10 text-slate-400 italic font-medium">No organizations found in your jurisdiction.</td></tr>
+                 <tr><td colSpan={6}><EmptyState title="No Organizations Registered Yet" description="Start by adding the first partner, client, college, community group, or government contact for this jurisdiction." action={<button className="primary" onClick={() => setShowCreate(true)}>Add Organization</button>} /></td></tr>
               )}
             </tbody>
           </table>

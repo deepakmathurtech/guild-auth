@@ -4,6 +4,7 @@ import { loginWithEmail, loginWithGoogle, registerWithEmail } from '../lib/auth'
 import type { Jurisdiction } from '../types/guild';
 import { useAuth } from '../context/AuthContext';
 import { INDIAN_STATES } from '../lib/jurisdiction';
+import { isUserActive } from '../lib/rbac';
 import { ChevronRight, ArrowLeft, ShieldCheck, MapPin, Sparkles, User, Mail } from 'lucide-react';
 
 export function LoginPage() {
@@ -20,8 +21,13 @@ export function LoginPage() {
   const [cityName, setCityName] = useState('');
   const [skills, setSkills] = useState('');
   const [interests, setInteractions] = useState('');
+  const [phone, setPhone] = useState('');
+  const [availability, setAvailability] = useState('');
+  const [emergencyContact, setEmergencyContact] = useState('');
+  const [preferredRole, setPreferredRole] = useState('');
+  const [referralSource, setReferralSource] = useState('');
 
-  if (profile) return <Navigate to="/" replace />;
+  if (profile && isUserActive(profile)) return <Navigate to="/" replace />;
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
@@ -53,7 +59,14 @@ export function LoginPage() {
         fullName, 
         jurisdiction, 
         skills.split(',').map(s => s.trim()), 
-        interests.split(',').map(i => i.trim())
+        interests.split(',').map(i => i.trim()),
+        {
+          phone,
+          availability,
+          emergencyContact,
+          preferredRole,
+          referralSource
+        }
       );
     } catch (err: any) {
       setError(err.message);
@@ -105,6 +118,10 @@ export function LoginPage() {
                       <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@email.com" />
                     </div>
                     <div className="space-y-2">
+                      <label className="text-xs font-black uppercase text-slate-400">Phone Number</label>
+                      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 ..." />
+                    </div>
+                    <div className="space-y-2">
                       <label className="text-xs font-black uppercase text-slate-400">Password (Min 6 chars)</label>
                       <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
                     </div>
@@ -132,14 +149,34 @@ export function LoginPage() {
                 )}
 
                 {step === 3 && (
-                  <form onSubmit={handleRegister} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="space-y-2">
-                      <label className="text-xs font-black uppercase text-slate-400">Skills (Comma separated)</label>
-                      <input value={skills} onChange={e => setSkills(e.target.value)} placeholder="React, Content Writing, Sales" />
+                  <form onSubmit={handleRegister} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300 overflow-y-auto max-h-[60vh] pr-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase text-slate-400">Skills</label>
+                        <input value={skills} onChange={e => setSkills(e.target.value)} placeholder="React, Sales" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase text-slate-400">Interests</label>
+                        <input value={interests} onChange={e => setInteractions(e.target.value)} placeholder="Tech, Art" />
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black uppercase text-slate-400">Interests</label>
-                      <input value={interests} onChange={e => setInteractions(e.target.value)} placeholder="Technology, Social Work" />
+                      <label className="text-xs font-black uppercase text-slate-400">Availability</label>
+                      <input value={availability} onChange={e => setAvailability(e.target.value)} placeholder="e.g. 20 hours/week" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-black uppercase text-slate-400">Emergency Contact</label>
+                      <input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} placeholder="Name & Phone" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase text-slate-400">Preferred Role</label>
+                        <input value={preferredRole} onChange={e => setPreferredRole(e.target.value)} placeholder="e.g. Developer" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-black uppercase text-slate-400">Referral</label>
+                        <input value={referralSource} onChange={e => setReferralSource(e.target.value)} placeholder="Friend, Social" />
+                      </div>
                     </div>
                     {error && <p className="text-red-500 text-sm font-bold">{error}</p>}
                     <div className="flex gap-2">

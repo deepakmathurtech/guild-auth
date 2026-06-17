@@ -5,6 +5,7 @@ import { limit, orderBy, where } from 'firebase/firestore';
 import { subscribeRecords, createLedgerRecord, getRecord } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
 import type { Outcome } from '../../types/guild';
+import { EmptyState } from '../../components/EmptyState';
 
 export function OutcomePage() {
   const navigate = useNavigate();
@@ -27,12 +28,22 @@ export function OutcomePage() {
   });
 
   useEffect(() => {
+    if (!profile) return;
+    const base = [where('archiveStatus', '==', 'active')];
+    if (['guildFounder', 'centralGuildMaster', 'founder'].includes(profile.role)) {
+       // National see all
+    } else if (profile.role === 'stateGuildMaster') {
+       base.push(where('jurisdiction.stateId', '==', profile.jurisdiction.stateId));
+    } else {
+       base.push(where('jurisdiction.cityId', '==', profile.jurisdiction.cityId));
+    }
+
     return subscribeRecords('outcomes', setOutcomes, [
-      where('archiveStatus', '==', 'active'),
+      ...base,
       orderBy('updatedAt', 'desc'),
       limit(200)
     ]);
-  }, []);
+  }, [profile]);
 
   const visible = useMemo(() => {
     return outcomes.filter(outcome => {
@@ -84,10 +95,11 @@ export function OutcomePage() {
 
   return (
     <section className="workbench">
-      <div className="panel intro flex justify-between items-start">
+      <div className="panel intro flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="eyebrow">Outcomes & Knowledge</p>
           <h2>Record Verified Value</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">Close the loop after verified work by recording value, participants, evidence, and lessons learned.</p>
         </div>
         <button className="primary" onClick={() => setShowCreate(!showCreate)}>
           {showCreate ? 'Close Form' : 'Record Outcome'}
@@ -120,14 +132,14 @@ export function OutcomePage() {
             <tbody>
               {visible.map(outcome => (
                 <tr key={outcome.id}>
-                  <td><strong>{outcome.title}</strong></td>
-                  <td>{outcome.organizationName || '-'}</td>
-                  <td>?{outcome.revenueGenerated}</td>
-                  <td>{outcome.participants?.length || 0}</td>
-                  <td><StatusBadge status={outcome.verificationStatus} /></td>
+                  <td data-label="Title"><strong>{outcome.title}</strong></td>
+                  <td data-label="Organization">{outcome.organizationName || '-'}</td>
+                  <td data-label="Revenue">INR {Number(outcome.revenueGenerated || 0).toLocaleString('en-IN')}</td>
+                  <td data-label="Participants">{outcome.participants?.length || 0}</td>
+                  <td data-label="Status"><StatusBadge status={outcome.verificationStatus} /></td>
                 </tr>
               ))}
-              {visible.length === 0 && <tr><td colSpan={5}>No outcomes recorded yet.</td></tr>}
+              {visible.length === 0 && <tr><td colSpan={5}><EmptyState title="No Outcomes Recorded Yet" description="Once an opportunity is completed and verified, record the outcome here so revenue and knowledge can be generated from it." action={<button className="primary" onClick={() => setShowCreate(true)}>Record Outcome</button>} /></td></tr>}
             </tbody>
           </table>
         </div>

@@ -27,7 +27,7 @@ export function DashboardPage() {
     if (!profile) return [];
     const base = [where('archiveStatus', '==', 'active')];
     
-    if (profile.role === 'guildFounder' || profile.role === 'centralGuildMaster') return base;
+    if (profile.role === 'guildFounder' || profile.role === 'centralGuildMaster' || profile.role === 'founder') return base;
     
     if (profile.role === 'stateGuildMaster') {
       return [...base, where('jurisdiction.stateId', '==', profile.jurisdiction.stateId)];
@@ -69,7 +69,7 @@ export function DashboardPage() {
   if (!profile) return <p className="p-10 text-center font-bold">Synchronizing Federation Access...</p>;
 
   // 1. National Level
-  if (profile.role === 'guildFounder' || profile.role === 'centralGuildMaster') {
+  if (profile.role === 'guildFounder' || profile.role === 'centralGuildMaster' || profile.role === 'founder') {
     return <FounderDashboard />;
   }
   

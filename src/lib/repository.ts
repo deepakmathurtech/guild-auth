@@ -33,7 +33,12 @@ import type {
   RevenueEvent,
   VerificationRecord,
   InteractionRecord,
-  RankReviewTicket
+  RankReviewTicket,
+  SuccessionPlan,
+  TransferRecord,
+  LeaveRecord,
+  EscalationRecord,
+  DisputeRecord
 } from '../types/guild';
 
 export type EntityMap = {
@@ -50,6 +55,11 @@ export type EntityMap = {
   notifications: NotificationRecord;
   interactions: InteractionRecord;
   rankReviews: RankReviewTicket;
+  successionPlans: SuccessionPlan & { userId: string; id: string }; // Extended for repository use
+  transferRecords: TransferRecord;
+  leaveRecords: LeaveRecord;
+  escalationRecords: EscalationRecord;
+  disputeRecords: DisputeRecord;
 };
 
 export const ledgerCollections: LedgerCollection[] = [
@@ -68,7 +78,12 @@ export const ledgerCollections: LedgerCollection[] = [
   'rankReviews',
   'guildRegions',
   'guildStates',
-  'guildCities'
+  'guildCities',
+  'successionPlans',
+  'transferRecords',
+  'leaveRecords',
+  'escalationRecords',
+  'disputeRecords'
 ];
 
 export function nowIso() {

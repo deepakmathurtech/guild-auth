@@ -152,9 +152,12 @@ export function FounderDashboard() {
                    <span className="block font-bold">{u.fullName}</span>
                    <span className="text-[10px] text-blue-600 font-black uppercase tracking-widest">{u.jurisdiction?.cityName}, {u.jurisdiction?.stateName}</span>
                  </div>
-                 <div className="flex gap-2">
-                    <button className="primary text-[10px] px-4 py-2" disabled={!!approving} onClick={() => handleApprove(u.uid, 'member')}>Verify Member</button>
-                    <button className="ghost text-[10px] px-4 py-2" disabled={!!approving} onClick={() => handleApprove(u.uid, 'receptionist')}>Receptionist</button>
+                 <div className="flex flex-wrap gap-2">
+                    <button className="primary text-[10px] px-3 py-1.5" disabled={!!approving} onClick={() => handleApprove(u.uid, 'member')}>Member</button>
+                    <button className="ghost text-[10px] px-3 py-1.5" disabled={!!approving} onClick={() => handleApprove(u.uid, 'receptionist')}>Receptionist</button>
+                    <button className="ghost text-[10px] px-3 py-1.5 border-blue-500 text-blue-500" disabled={!!approving} onClick={() => handleApprove(u.uid, 'cityGuildMaster')}>City Master</button>
+                    <button className="ghost text-[10px] px-3 py-1.5 border-purple-500 text-purple-500" disabled={!!approving} onClick={() => handleApprove(u.uid, 'stateGuildMaster')}>State Master</button>
+                    <button className="ghost text-[10px] px-3 py-1.5 border-red-500 text-red-500" disabled={!!approving} onClick={() => handleApprove(u.uid, 'nationalGuildMaster')}>National Master</button>
                  </div>
                </div>
              ))}

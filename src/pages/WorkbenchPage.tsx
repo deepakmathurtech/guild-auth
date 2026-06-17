@@ -25,7 +25,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'organizations',
     title: 'Organization Management',
     description: 'Receptionists map businesses, NGOs, colleges, contractors, communities, and government-related contacts with full interaction history.',
-    roles: ['receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Organization Created',
     searchable: ['name', 'category', 'city', 'currentStatus'],
     fields: [
@@ -45,7 +45,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'needs',
     title: 'Needs System',
     description: 'Capture discovered problems and needs before they become opportunities.',
-    roles: ['receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Need Created',
     searchable: ['title', 'priority', 'city', 'status'],
     fields: [
@@ -66,7 +66,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'opportunities',
     title: 'Opportunity System',
     description: 'Convert needs into assignable opportunities, collect applications, and move completed work into outcomes.',
-    roles: ['member', 'contributor', 'receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Opportunity Created',
     searchable: ['title', 'category', 'organizationName', 'status'],
     fields: [
@@ -88,7 +88,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'quests',
     title: 'Quest System',
     description: 'Create repeatable quests with requirements, submission methods, and verification logic.',
-    roles: ['receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Quest Created',
     searchable: ['title', 'category', 'difficulty'],
     fields: [
@@ -108,7 +108,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'questSubmissions',
     title: 'Quest Submissions',
     description: 'Members submit reports, images, documents, links, and videos. Receptionists verify without losing history.',
-    roles: ['member', 'contributor', 'receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Quest Submission Created',
     searchable: ['questTitle', 'memberId', 'status'],
     fields: [
@@ -127,7 +127,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'verifications',
     title: 'Verification Engine',
     description: 'Review outcomes, documents, receipts, organization confirmations, and manual evidence.',
-    roles: ['receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Verification Record Created',
     searchable: ['targetCollection', 'targetId', 'decision'],
     fields: [
@@ -144,7 +144,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'outcomes',
     title: 'Outcome System',
     description: 'Completed opportunities become outcomes and feed the permanent knowledge base.',
-    roles: ['receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Outcome Recorded',
     searchable: ['title', 'organizationName', 'verificationStatus'],
     fields: [
@@ -164,7 +164,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'revenueEvents',
     title: 'Revenue Tracking',
     description: 'Manually track all value creation by receptionist, city, month, and opportunity type.',
-    roles: ['receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Revenue Recorded',
     searchable: ['source', 'organizationName', 'city', 'opportunityType'],
     fields: [
@@ -184,7 +184,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'knowledgeBase',
     title: 'Knowledge Archive',
     description: 'Preserve lessons, success stories, failure reports, playbooks, templates, and organization insights.',
-    roles: ['member', 'contributor', 'receptionist', 'cityGuildMaster', 'guildFounder'],
+    roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Knowledge Record Created',
     searchable: ['title', 'type', 'body'],
     fields: [
@@ -201,7 +201,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'activityLogs',
     title: 'Guild Ledger & Audit Trail',
     description: 'Permanent audit trail. Operational records are archived by status instead of deleted.',
-    roles: ['cityGuildMaster', 'guildFounder'],
+    roles: ['cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'Ledger Viewed',
     searchable: ['action', 'userName', 'relatedEntityType'],
     fields: [],
@@ -211,14 +211,14 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     collectionName: 'users',
     title: 'Admin Panel',
     description: 'Manage users, roles, permissions, verification audits, revenue records, and global configuration.',
-    roles: ['guildFounder'],
+    roles: ['centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'],
     action: 'User Created',
     searchable: ['fullName', 'email', 'role', 'city'],
     fields: [
       { name: 'uid', label: 'UID', type: 'text', required: true },
       { name: 'email', label: 'Email', type: 'text', required: true },
       { name: 'fullName', label: 'Full Name', type: 'text', required: true },
-      { name: 'role', label: 'Role', type: 'select', options: ['applicant', 'member', 'contributor', 'receptionist', 'cityGuildMaster', 'guildFounder'] },
+      { name: 'role', label: 'Role', type: 'select', options: ['applicant', 'member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
       { name: 'city', label: 'City', type: 'text' },
       { name: 'skills', label: 'Skills', type: 'tags' },
       { name: 'interests', label: 'Interests', type: 'tags' },

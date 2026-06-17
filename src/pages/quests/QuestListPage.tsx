@@ -6,10 +6,12 @@ import { subscribeRecords } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
 import type { Quest } from '../../types/guild';
 import { Filter, Search, Plus } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState';
 
 export function QuestListPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile } = useAuth();
   
   const [quests, setQuests] = useState<Quest[]>([]);
   
@@ -21,12 +23,22 @@ export function QuestListPage() {
   const [filterStatus, setFilterStatus] = useState('');
 
   useEffect(() => {
+    if (!profile) return;
+    const base = [where('archiveStatus', '==', 'active')];
+    if (['guildFounder', 'centralGuildMaster', 'founder'].includes(profile.role)) {
+       // National see all
+    } else if (profile.role === 'stateGuildMaster') {
+       base.push(where('jurisdiction.stateId', '==', profile.jurisdiction.stateId));
+    } else {
+       base.push(where('jurisdiction.cityId', '==', profile.jurisdiction.cityId));
+    }
+
     return subscribeRecords('quests', setQuests, [
-      where('archiveStatus', '==', 'active'),
+      ...base,
       orderBy('updatedAt', 'desc'),
       limit(200)
     ]);
-  }, []);
+  }, [profile]);
 
   const visible = useMemo(() => {
     return quests.filter(quest => {
@@ -42,11 +54,11 @@ export function QuestListPage() {
 
   return (
     <section className="page-grid max-w-7xl mx-auto">
-      <div className="hero-panel flex justify-between items-start">
+      <div className="hero-panel flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="eyebrow">Guild Quest Record System</p>
           <h2>Quest Registry</h2>
-          <p>The official, searchable database of all Guild Quests.</p>
+          <p className="mt-2 text-[var(--muted)]">The official, searchable case-file registry for Guild missions, assignments, verification, and value flow.</p>
         </div>
         <button className="primary flex items-center gap-2" onClick={() => navigate('/quests/register', { state: location.state })}>
           <Plus size={18}/> Register Quest
@@ -97,15 +109,15 @@ export function QuestListPage() {
             <tbody>
               {visible.map(quest => (
                 <tr key={quest.id} className="hover:bg-[var(--bg-alt)] transition-colors">
-                  <td><span className="font-mono text-sm text-blue-400">{quest.guildQuestId || quest.id}</span></td>
-                  <td><strong>{quest.title}</strong><br/><span className="text-xs text-[var(--muted)]">{quest.category} &middot; {quest.assignedMembers?.length || 0} Members</span></td>
-                  <td><span className="role-pill">{quest.classification || 'Unclassified'}</span></td>
-                  <td>{quest.isPaid ? <span className="text-green-400 font-bold text-xs bg-green-900/30 px-2 py-1 rounded">Paid</span> : <span className="text-gray-400 font-bold text-xs bg-gray-800 px-2 py-1 rounded">Volunteer</span>}</td>
-                  <td><StatusBadge status={quest.status} /></td>
-                  <td className="text-right"><button className="primary text-xs" onClick={() => navigate(`/quests/${quest.id}`)}>Open Record</button></td>
+                  <td data-label="Quest ID"><span className="font-mono text-sm text-[var(--primary)]">{quest.guildQuestId || quest.id}</span></td>
+                  <td data-label="Title"><strong>{quest.title}</strong><br/><span className="text-xs text-[var(--muted)]">{quest.category} &middot; {quest.assignedMembers?.length || 0} Members &middot; {quest.completenessScore || 0}% complete</span></td>
+                  <td data-label="Classification"><span className="role-pill">{quest.classification || 'Unclassified'}</span></td>
+                  <td data-label="Financials">{quest.isPaid ? <span className="badge border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">Paid</span> : <span className="badge border-[var(--border)] bg-[var(--card-subtle)] text-[var(--muted)]">Volunteer</span>}</td>
+                  <td data-label="Status"><StatusBadge status={quest.status} /></td>
+                  <td data-label="Actions" className="text-right"><button className="primary text-xs" onClick={() => navigate(`/quests/${quest.id}`)}>Open Record</button></td>
                 </tr>
               ))}
-              {visible.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-[var(--muted)]">No quests match your criteria.</td></tr>}
+              {visible.length === 0 && <tr><td colSpan={6}><EmptyState title="No Quests Registered Yet" description="Register the first quest when work is ready to become a trackable Guild mission with owners, verification, and outcomes." action={<button className="primary" onClick={() => navigate('/quests/register')}>Register Quest</button>} /></td></tr>}
             </tbody>
           </table>
         </div>

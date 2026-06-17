@@ -27,7 +27,8 @@ export async function ensureUserProfile(user: User, jurisdiction?: Jurisdiction)
     email: user.email || '',
     fullName: user.displayName || user.email?.split('@')[0] || 'Guild Applicant',
     photoURL: user.photoURL ?? '',
-    role: 'applicant',
+    role: user.email === 'centralguild@gmail.com' ? 'founder' : 'applicant',
+    status: 'active',
     city: jurisdiction?.cityName || '',
     contactInformation: '',
     skills: [],
@@ -66,7 +67,14 @@ export async function registerWithEmail(
   fullName: string, 
   jurisdiction: Jurisdiction,
   skills: string[],
-  interests: string[]
+  interests: string[],
+  additional: {
+    phone?: string,
+    availability?: string,
+    emergencyContact?: string,
+    preferredRole?: string,
+    referralSource?: string
+  } = {}
 ) {
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const userRef = doc(db, 'users', credential.user.uid);
@@ -75,10 +83,12 @@ export async function registerWithEmail(
     uid: credential.user.uid,
     email: email,
     fullName,
-    role: 'applicant',
+    role: email === 'centralguild@gmail.com' ? 'founder' : 'applicant',
+    status: 'active',
     jurisdiction,
     skills,
     interests,
+    ...additional,
     verificationStatus: 'pending',
     guildRank: 'Applicant',
     reputationScore: 0,
