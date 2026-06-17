@@ -64,8 +64,30 @@ export function QuestDetailsPage() {
   async function handleAssignMember(user: GuildUser) {
     if (!quest || !profile) return;
     const newMembers = [...(quest.assignedMembers || []), user.uid];
-    await updateLedgerRecord('quests', quest.id, { assignedMembers: newMembers }, profile, `Assigned Member ${user.uid}`);
-    setQuest({ ...quest, assignedMembers: newMembers });
+    await updateLedgerRecord('quests', quest.id, { 
+      assignedMembers: newMembers,
+      status: quest.status === 'open' ? 'assigned' : quest.status
+    }, profile, `Assigned Member ${user.uid}`);
+    setQuest({ ...quest, assignedMembers: newMembers, status: quest.status === 'open' ? 'assigned' : quest.status });
+  }
+
+  async function handleApply() {
+    if (!quest || !profile) return;
+    const newApplicants = [...(quest.applicants || []), profile.uid];
+    await updateLedgerRecord('quests', quest.id, { applicants: newApplicants }, profile, 'Applied for Quest');
+    setQuest({ ...quest, applicants: newApplicants });
+  }
+
+  async function handleAcceptApplicant(uid: string) {
+    if (!quest || !profile) return;
+    const newMembers = [...(quest.assignedMembers || []), uid];
+    const newApplicants = (quest.applicants || []).filter(a => a !== uid);
+    await updateLedgerRecord('quests', quest.id, { 
+      assignedMembers: newMembers, 
+      applicants: newApplicants,
+      status: quest.status === 'open' ? 'assigned' : quest.status
+    }, profile, `Accepted Applicant ${uid}`);
+    setQuest({ ...quest, assignedMembers: newMembers, applicants: newApplicants, status: quest.status === 'open' ? 'assigned' : quest.status });
   }
 
   if (!quest) return <p className="p-8">Loading official guild record...</p>;
@@ -84,6 +106,18 @@ export function QuestDetailsPage() {
         </div>
         <p className="text-blue-400 font-mono font-bold text-sm tracking-wider mb-1">{quest.guildQuestId || quest.id}</p>
         <h1 className="text-3xl font-bold mb-4">{quest.title}</h1>
+        
+        {/* MEMBER ACTIONS */}
+        {profile?.role === 'member' && !quest.assignedMembers?.includes(profile.uid) && !quest.applicants?.includes(profile.uid) && quest.status === 'open' && (
+          <div className="mb-6">
+            <button className="primary w-full md:w-auto" onClick={handleApply}>Apply for this Quest</button>
+          </div>
+        )}
+        {profile?.role === 'member' && quest.applicants?.includes(profile.uid) && (
+          <div className="mb-6 bg-blue-500/20 border border-blue-500/50 p-3 rounded text-sm text-blue-200">
+            You have applied for this quest. Waiting for receptionist review.
+          </div>
+        )}
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
@@ -302,12 +336,30 @@ export function QuestDetailsPage() {
         </CollapsibleSection>
 
         <CollapsibleSection title="5. Member Assignment" icon={<Users size={18}/>}>
-          <div className="mb-4">
-             <label className="block text-xs text-[var(--muted)] uppercase mb-1">Add Member to Quest</label>
-             <MemberSearch onSelect={handleAssignMember} />
-          </div>
+          {profile?.role === 'receptionist' && (
+            <>
+              <div className="mb-4">
+                 <label className="block text-xs text-[var(--muted)] uppercase mb-1">Add Member to Quest</label>
+                 <MemberSearch onSelect={handleAssignMember} />
+              </div>
+              
+              {quest.applicants && quest.applicants.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold mb-2 text-blue-400 uppercase tracking-tight">Pending Applicants</h4>
+                  <div className="space-y-2">
+                    {quest.applicants.map(uid => (
+                      <div key={uid} className="flex justify-between items-center p-2 bg-blue-900/10 border border-blue-500/30 rounded">
+                        <span className="text-sm font-mono">{uid}</span>
+                        <button className="primary text-xs px-2 py-1" onClick={() => handleAcceptApplicant(uid)}>Accept</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
           <div>
-            <h4 className="text-sm font-bold mb-2">Assigned Members</h4>
+            <h4 className="text-sm font-bold mb-2 uppercase tracking-tight">Assigned Members</h4>
             <div className="space-y-2">
               {quest.assignedMembers?.map(uid => (
                 <div key={uid} className="flex justify-between items-center p-2 bg-[var(--bg-alt)] border border-[var(--border)] rounded">

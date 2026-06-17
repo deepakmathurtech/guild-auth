@@ -97,7 +97,7 @@ export function NeedDetailsPage() {
             <div className="space-y-2">
               <p><strong>Description:</strong> {need.description}</p>
               <p><strong>Location:</strong> {need.location || need.city || 'No location specified'}</p>
-              <p><strong>Estimated Value:</strong> ?{need.estimatedValue}</p>
+              <p><strong>Estimated Value:</strong> ₹{need.estimatedValue}</p>
               <p><strong>Created By:</strong> {need.createdBy}</p>
             </div>
           )}

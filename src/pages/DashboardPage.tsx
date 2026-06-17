@@ -46,7 +46,7 @@ export function DashboardPage() {
       { label: 'Active Needs', value: activeNeeds.length },
       { label: 'Active Opportunities', value: activeOpps.length },
       { label: 'Pending Verifications', value: pending },
-      { label: 'Revenue Tracked', value: `?${totalRevenue.toLocaleString('en-IN')}` },
+      { label: 'Revenue Tracked', value: `₹${totalRevenue.toLocaleString('en-IN')}` },
       { label: 'Members Helped', value: new Set(opportunities.flatMap((item) => item.assignedMembers || [])).size }
     ];
   }, [organizations, needs, opportunities, submissions, verifications, revenue, profile?.role, profile?.uid]);

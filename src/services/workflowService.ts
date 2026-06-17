@@ -263,5 +263,19 @@ export async function approveSubmission(
     if (quest.opportunityId) {
       await checkOpportunityCompletion(quest.opportunityId, profile);
     }
+
+    // 6. Automated Revenue Event (if quest is paid)
+    if (quest.isPaid && quest.paymentAmount) {
+      await createLedgerRecord('revenueEvents', {
+        source: `Quest Payment: ${quest.title}`,
+        questId: quest.id,
+        opportunityId: quest.opportunityId,
+        organizationId: quest.organizationId,
+        organizationName: quest.organizationName,
+        amount: quest.paymentAmount,
+        date: new Date().toISOString(),
+        participants: [submission.memberId]
+      }, profile, 'Revenue Event Auto-Generated on Approval');
+    }
   }
 }

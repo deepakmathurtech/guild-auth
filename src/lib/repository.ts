@@ -163,6 +163,7 @@ export function subscribeRecords<K extends keyof EntityMap>(
 
 export async function addInteraction(orgId: string, actor: GuildUser, summary: string, type: InteractionRecord['type'] = 'note', nextAction?: string, dueDate?: string) {
   return createLedgerRecord('interactions', {
+    organizationId: orgId,
     type,
     summary,
     nextAction,

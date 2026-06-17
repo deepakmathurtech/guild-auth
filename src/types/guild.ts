@@ -75,6 +75,7 @@ export interface Organization extends AuditFields {
 
 export interface InteractionRecord {
   id: string;
+  organizationId?: string;
   type: 'call' | 'meeting' | 'email' | 'visit' | 'note';
   summary: string;
   createdBy: string;
@@ -171,6 +172,7 @@ export interface Quest extends AuditFields {
   ownerId?: string; // Legacy field, eventually mapped to stakeholders
   membersRequired?: number;
   assignedMembers?: string[];
+  applicants?: string[];
   acceptedMembers?: string[];
   completedMembers?: string[];
   rejectedMembers?: string[];

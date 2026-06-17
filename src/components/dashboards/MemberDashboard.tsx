@@ -24,7 +24,7 @@ export function MemberDashboard({ opportunities, submissions }: Props) {
         <p>Your current Guild Rank: <strong>{profile?.guildRank}</strong></p>
       </div>
       <div className="metrics-grid">
-        <article className="metric-card"><span>Total Earned</span><strong>?{myRevenue.toLocaleString('en-IN')}</strong></article>
+        <article className="metric-card"><span>Total Earned</span><strong>₹{myRevenue.toLocaleString('en-IN')}</strong></article>
         <article className="metric-card"><span>Quests Completed</span><strong>{profile?.completedQuests || 0}</strong></article>
         <article className="metric-card"><span>Reputation</span><strong>{profile?.reputationScore || 0}</strong></article>
         <article className="metric-card"><span>Pending Submissions</span><strong>{mySubmissions.filter(s => s.status === 'pending').length}</strong></article>
@@ -37,7 +37,7 @@ export function MemberDashboard({ opportunities, submissions }: Props) {
             <tbody>
               {opportunities.filter(o => !o.assignedMembers?.includes(profile?.uid || '') && ['open', 'matching', 'assigned', 'inProgress'].includes(o.status)).slice(0,5).map(o => (
                 <tr key={o.id}>
-                  <td>{o.title}</td><td>{o.category}</td><td>{o.skillsRequired.join(', ')}</td><td>?{o.estimatedRevenue}</td>
+                  <td>{o.title}</td><td>{o.category}</td><td>{o.skillsRequired.join(', ')}</td><td>₹{o.estimatedRevenue}</td>
                 </tr>
               ))}
               {opportunities.filter(o => !o.assignedMembers?.includes(profile?.uid || '') && ['open', 'matching', 'assigned', 'inProgress'].includes(o.status)).length === 0 && <tr><td colSpan={4}>No new opportunities right now.</td></tr>}
