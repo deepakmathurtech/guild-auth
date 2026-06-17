@@ -30,7 +30,9 @@ import type {
   Quest,
   QuestSubmission,
   RevenueEvent,
-  VerificationRecord
+  VerificationRecord,
+  InteractionRecord,
+  RankReviewTicket
 } from '../types/guild';
 
 export type EntityMap = {
@@ -43,8 +45,10 @@ export type EntityMap = {
   outcomes: Outcome;
   verifications: VerificationRecord;
   revenueEvents: RevenueEvent;
-  knowledgeArchive: KnowledgeRecord;
+  knowledgeBase: KnowledgeRecord;
   notifications: NotificationRecord;
+  interactions: InteractionRecord;
+  rankReviews: RankReviewTicket;
 };
 
 export const ledgerCollections: LedgerCollection[] = [
@@ -57,8 +61,10 @@ export const ledgerCollections: LedgerCollection[] = [
   'outcomes',
   'verifications',
   'revenueEvents',
-  'knowledgeArchive',
-  'notifications'
+  'knowledgeBase',
+  'notifications',
+  'interactions',
+  'rankReviews'
 ];
 
 export function nowIso() {
@@ -132,7 +138,7 @@ export async function updateLedgerRecord<K extends keyof EntityMap>(
 }
 
 export async function archiveLedgerRecord<K extends keyof EntityMap>(collectionName: K, id: string, actor: GuildUser) {
-  return updateLedgerRecord(collectionName, id, { archiveStatus: 'archived' } as Partial<EntityMap[K]>, actor, `${collectionName} archived`);
+  return updateLedgerRecord(collectionName, id, { archiveStatus: 'archived' } as unknown as Partial<EntityMap[K]>, actor, `${collectionName} archived`);
 }
 
 export async function getRecord<K extends keyof EntityMap>(collectionName: K, id: string) {
@@ -155,15 +161,13 @@ export function subscribeRecords<K extends keyof EntityMap>(
   });
 }
 
-export async function addInteraction(org: Organization, actor: GuildUser, summary: string, type: Organization['interactionHistory'][number]['type'] = 'note') {
-  const interaction = {
-    id: crypto.randomUUID(),
+export async function addInteraction(orgId: string, actor: GuildUser, summary: string, type: InteractionRecord['type'] = 'note', nextAction?: string, dueDate?: string) {
+  return createLedgerRecord('interactions', {
     type,
     summary,
-    createdBy: actor.uid,
-    createdAt: nowIso()
-  };
-  await updateLedgerRecord('organizations', org.id, { interactionHistory: [interaction, ...(org.interactionHistory || [])] }, actor, 'Organization interaction recorded');
+    nextAction,
+    dueDate,
+  } as any, actor, 'Interaction recorded');
 }
 
 export async function createNotification(input: Omit<NotificationRecord, 'id' | keyof AuditFields>, actor: GuildUser) {

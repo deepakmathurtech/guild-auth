@@ -1,8 +1,7 @@
 import { createLedgerRecord, updateLedgerRecord, getRecord, listRecords, logActivity } from '../lib/repository';
 import type { GuildUser, Need, Opportunity, Quest, QuestSubmission } from '../types/guild';
-import { where, increment } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, increment, collection, query, getDocs, where, runTransaction } from 'firebase/firestore';
 
 /**
  * workflowService.ts
@@ -42,6 +41,26 @@ export async function convertNeedToOpportunity(
   return opp;
 }
 
+export async function generateGuildQuestId(city: string = 'LDH', category: string = 'TECH'): Promise<string> {
+  const counterRef = doc(db, 'system', 'counters');
+  
+  return await runTransaction(db, async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
+    let currentNumber = 1;
+    
+    if (!counterDoc.exists()) {
+      transaction.set(counterRef, { questCount: 1 });
+    } else {
+      currentNumber = (counterDoc.data().questCount || 0) + 1;
+      transaction.update(counterRef, { questCount: currentNumber });
+    }
+    
+    const year = new Date().getFullYear();
+    const sequence = currentNumber.toString().padStart(4, '0');
+    return `GQ-${year}-${city}-${category.toUpperCase().substring(0, 4)}-${sequence}`;
+  });
+}
+
 // 2. Opportunity -> Quest
 export async function spawnQuestForOpportunity(
   opportunity: Opportunity, 
@@ -63,6 +82,7 @@ export async function spawnQuestForOpportunity(
     verificationMethod: questData.verificationMethod || 'manualReview',
     reputationPoints: questData.reputationPoints || 10,
     isMandatory: questData.isMandatory !== undefined ? questData.isMandatory : true,
+    guildQuestId: await generateGuildQuestId('LDH', opportunity.category || 'GEN'),
     status: 'active'
   }, profile, 'Quest Spawned');
 
@@ -173,8 +193,51 @@ export async function approveSubmission(
       const userRef = doc(db, 'users', submission.memberId);
       await updateDoc(userRef, {
         reputationScore: increment(quest.reputationPoints || 0),
+        experiencePoints: increment(quest.reputationPoints || 0),
         completedQuests: increment(1)
       });
+      
+      // Rank Evaluation Logic
+      const updatedUserSnap = await getDoc(userRef);
+      if (updatedUserSnap.exists()) {
+        const u = updatedUserSnap.data() as GuildUser;
+        let newRank = u.guildRank;
+        
+        // Automatic F
+        if (u.guildRank === 'Applicant' && u.completedQuests >= 1 && u.reputationScore >= 10) {
+          newRank = 'F';
+        }
+        // Automatic E
+        else if (u.guildRank === 'F' && u.completedQuests >= 5 && u.reputationScore >= 50 && (u.knowledgeEntriesCount || 0) >= 1) {
+          newRank = 'E';
+        }
+        // D Candidate Trigger
+        else if (u.guildRank === 'E' && u.completedQuests >= 15 && u.reputationScore >= 150 && (u.knowledgeEntriesCount || 0) >= 5) {
+          // Check if pending review exists
+          const existing = await getDocs(query(collection(db, 'rankReviews'), where('memberId', '==', u.uid), where('status', '==', 'pending')));
+          if (existing.empty) {
+            await createLedgerRecord('rankReviews', {
+              memberId: u.uid,
+              currentRank: 'E',
+              requestedRank: 'D',
+              status: 'pending'
+            } as any, profile, 'Rank Review Ticket Auto-Generated');
+          }
+        }
+        
+        if (newRank !== u.guildRank) {
+          await updateDoc(userRef, { guildRank: newRank });
+          await createLedgerRecord('notifications', {
+            userId: u.uid,
+            type: 'general_alert',
+            title: 'Rank Up!',
+            body: `Congratulations! You have been promoted to ${newRank} Rank.`,
+            read: false,
+            channel: 'inApp',
+            futureChannels: ['email']
+          }, profile, 'Rank Up Notification', true);
+        }
+      }
       // We also log this manually since we bypassed the standard updateLedgerRecord to use increment
       await logActivity({
         userId: profile.uid,

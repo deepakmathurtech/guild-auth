@@ -181,7 +181,7 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
     defaults: { amount: 0, participants: [] }
   },
   knowledge: {
-    collectionName: 'knowledgeArchive',
+    collectionName: 'knowledgeBase',
     title: 'Knowledge Archive',
     description: 'Preserve lessons, success stories, failure reports, playbooks, templates, and organization insights.',
     roles: ['member', 'contributor', 'receptionist', 'guildManager', 'guildAdmin'],

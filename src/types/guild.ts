@@ -1,7 +1,8 @@
-export type GuildRole = 'member' | 'contributor' | 'receptionist' | 'guildManager' | 'guildAdmin';
+export type GuildRole = 'member' | 'contributor' | 'receptionist' | 'guildManager' | 'guildAdmin' | 'founder';
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
 export type ArchiveStatus = 'active' | 'archived';
 export type OrganizationStatus = 'new' | 'contacted' | 'active' | 'partner' | 'inactive';
+export type GuildRank = 'Applicant' | 'F' | 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
 export type NeedStatus = 'open' | 'matching' | 'assigned' | 'inProgress' | 'completed' | 'converted' | 'archived';
 export type OpportunityStatus = 'draft' | 'open' | 'matching' | 'assigned' | 'inProgress' | 'completed' | 'archived';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
@@ -17,8 +18,10 @@ export type LedgerCollection =
   | 'outcomes'
   | 'verifications'
   | 'revenueEvents'
-  | 'knowledgeArchive'
-  | 'notifications';
+  | 'knowledgeBase'
+  | 'notifications'
+  | 'interactions'
+  | 'rankReviews';
 
 export interface AuditFields {
   createdBy: string;
@@ -41,8 +44,10 @@ export interface GuildUser extends AuditFields {
   interests: string[];
   bio?: string;
   verificationStatus: VerificationStatus;
-  guildRank: string;
+  guildRank: GuildRank;
   reputationScore: number;
+  experiencePoints: number;
+  knowledgeEntriesCount: number;
   completedQuests: number;
   verifiedOutcomes: number;
   revenueEarned: number;
@@ -62,7 +67,10 @@ export interface Organization extends AuditFields {
   needs: string[];
   opportunities: string[];
   currentStatus: OrganizationStatus;
-  interactionHistory: InteractionRecord[];
+  trustLevel: 'new' | 'verified' | 'trusted' | 'partner';
+  lastContactAt?: string;
+  nextFollowUpAt?: string;
+  relationshipNotes: string;
 }
 
 export interface InteractionRecord {
@@ -71,6 +79,8 @@ export interface InteractionRecord {
   summary: string;
   createdBy: string;
   createdAt: string;
+  needId?: string;
+  concern?: string;
   nextAction?: string;
   dueDate?: string;
 }
@@ -106,24 +116,119 @@ export interface Opportunity extends AuditFields {
   status: OpportunityStatus;
 }
 
-export type QuestStatus = 'active' | 'completed' | 'archived';
+export type QuestStatus = 'active' | 'completed' | 'cancelled' | 'archived' | 'closed';
+
+export type QuestClassification = 'Internal Guild' | 'External Client' | 'Community Service' | 'Revenue Generating' | 'Training' | 'Partnership' | 'Research' | 'Emergency';
+export type VerificationLevel = 'Self Verified' | 'Receptionist Verified' | 'Manager Verified' | 'External Verified';
+
+export interface QuestStakeholder {
+  role: string;
+  uid: string;
+  name: string;
+  joinedAt: string;
+}
 
 export interface Quest extends AuditFields {
-  id: string;
+  id: string; // Internal Firebase ID
+  guildQuestId?: string; // e.g. GQ-2026-LDH-TECH-0001
+  
+  // Linkage
   opportunityId?: string;
   needId?: string;
   organizationId?: string;
-  ownerId?: string;
-  isMandatory: boolean;
+  organizationName?: string;
+  
+  // Core Information
   title: string;
   description: string;
   category: string;
+  classification?: QuestClassification;
+  mode?: 'Remote' | 'Physical' | 'Hybrid';
+  location?: { city?: string; state?: string; country?: string };
+  
+  // Source Information
+  sourceType?: 'Organization' | 'Individual' | 'Guild Internal' | 'Partner Organization' | 'Government' | 'Other';
+  sourceName?: string;
+  sourceContactPerson?: string;
+  sourcePhone?: string;
+  sourceEmail?: string;
+
+  // Requirements
+  requiredRank?: GuildRank | 'Applicant';
+  requiredSkills?: string[];
+  estimatedHours?: number;
+  priority?: Priority;
+  questNature?: 'Volunteer' | 'Paid' | 'Internship' | 'Guild Duty' | 'Training' | 'Research' | 'Community Service' | 'Other';
+  isMandatory: boolean;
   difficulty: 'easy' | 'medium' | 'hard' | 'legendary';
+
+  // Members & Stakeholders
+  stakeholders?: QuestStakeholder[];
+  ownerId?: string; // Legacy field, eventually mapped to stakeholders
+  membersRequired?: number;
+  assignedMembers?: string[];
+  acceptedMembers?: string[];
+  completedMembers?: string[];
+  rejectedMembers?: string[];
+  assignedReceptionistId?: string;
+  assignedReceptionistName?: string;
+
+  // Financial Section
+  isPaid?: boolean;
+  paymentAmount?: number;
+  paymentCurrency?: string;
+  paymentType?: 'Cash' | 'Bank Transfer' | 'UPI' | 'Guild Treasury' | 'External Organization' | 'Other';
+  whoPays?: 'Organization' | 'Guild' | 'Partner' | 'Government' | 'Individual' | 'Other';
+  paymentStatus?: 'Pending' | 'Approved' | 'Paid' | 'Rejected';
+  paymentNotes?: string;
+  estimatedValue?: number;
+  actualValue?: number;
+  guildCommission?: number;
+  guildRevenue?: number;
+  memberPayout?: number;
+  outstandingAmount?: number;
+
+  // Verification
+  verificationMethod: VerificationMethod;
+  verificationLevel?: VerificationLevel;
+  verifierId?: string;
+  verifierName?: string;
+  expectedOutcome?: string;
+  actualOutcome?: string;
+  outcomeStatus?: 'Success' | 'Partial Success' | 'Failed';
+  impactSummary?: string;
+  lessonsLearned?: string;
+
+  // Knowledge & Rewards
   rewards: string;
   reputationPoints: number;
-  requirements: string;
-  submissionMethod: string;
-  verificationMethod: VerificationMethod;
+  experienceReward?: number;
+  knowledgeRequired?: boolean;
+  knowledgeSubmitted?: boolean;
+  knowledgeApproved?: boolean;
+  knowledgeLink?: string;
+  knowledgeReviewer?: string;
+  portfolioEligible?: boolean;
+  certificateEligible?: boolean;
+
+  // Revenue Status
+  revenueStatus?: 'Pending' | 'Approved' | 'Rejected';
+  submissionMethod?: string;
+  requirements?: string;
+
+  // Timeline
+  timeline?: {
+    created?: string;
+    assigned?: string;
+    accepted?: string;
+    submitted?: string;
+    verified?: string;
+    completed?: string;
+    outcomeRecorded?: string;
+    knowledgeSubmitted?: string;
+    revenueRecorded?: string;
+  };
+
   status: QuestStatus;
 }
 
@@ -185,10 +290,25 @@ export interface KnowledgeRecord extends AuditFields {
   id: string;
   title: string;
   type: 'lesson' | 'successStory' | 'failureReport' | 'playbook' | 'template' | 'organizationInsight';
+  authorId: string;
+  questId?: string;
+  opportunityId?: string;
   outcomeId?: string;
   organizationId?: string;
   tags: string[];
-  body: string;
+  lessonsLearned: string;
+  whatWorked: string;
+  whatFailed: string;
+  advice: string;
+  status: 'draft' | 'published';
+}
+
+export interface RankReviewTicket extends AuditFields {
+  id: string;
+  memberId: string;
+  currentRank: GuildRank;
+  requestedRank: GuildRank;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 export interface ActivityLog {

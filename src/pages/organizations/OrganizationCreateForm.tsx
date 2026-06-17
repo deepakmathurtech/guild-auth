@@ -31,8 +31,9 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
         ...form,
         needs: [],
         opportunities: [],
-        interactionHistory: [],
-        currentStatus: 'new'
+        currentStatus: 'new',
+        trustLevel: 'new',
+        relationshipNotes: ''
       }, profile, 'Organization Created');
       setStatus('');
       onSuccess();

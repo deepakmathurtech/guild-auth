@@ -5,7 +5,8 @@ export const roleWeight: Record<GuildRole, number> = {
   contributor: 2,
   receptionist: 3,
   guildManager: 4,
-  guildAdmin: 5
+  guildAdmin: 5,
+  founder: 6
 };
 
 export function hasRole(userRole: GuildRole | undefined, allowed: GuildRole[]) {
@@ -23,5 +24,6 @@ export const roleLabels: Record<GuildRole, string> = {
   contributor: 'Contributor',
   receptionist: 'Receptionist',
   guildManager: 'Guild Manager',
-  guildAdmin: 'Guild Admin'
+  guildAdmin: 'Guild Admin',
+  founder: 'Founder'
 };

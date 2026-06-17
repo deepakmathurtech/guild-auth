@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { StatusBadge } from '../StatusBadge';
-import { Bell, BriefcaseBusiness, Calendar, CheckCircle, ClipboardCheck, Sparkles } from 'lucide-react';
+import { Bell, BriefcaseBusiness, Calendar, CheckCircle, ClipboardCheck, Sparkles, AlertTriangle, PhoneCall } from 'lucide-react';
 import type { ActivityLog, Need, Opportunity, Organization, QuestSubmission, RevenueEvent, VerificationRecord, Quest, Outcome } from '../../types/guild';
 
 interface Props {
@@ -16,22 +16,20 @@ interface Props {
   logs: ActivityLog[];
 }
 
-export function ReceptionistDashboard({ opportunities, quests, submissions, outcomes }: Props) {
-  
+export function ReceptionistDashboard({ organizations, needs, opportunities, quests, submissions, outcomes }: Props) {
   const navigate = useNavigate();
   
   const pendingSubs = submissions.filter(s => s.status === 'pending');
-  // Overdue quests placeholder (assuming overdue if active and deadline passed. For V1.2 just showing active quests)
-  const activeQuests = quests.filter(q => q.status === 'active');
-  const recentOutcomes = outcomes.filter(o => o.verificationStatus === 'pending');
-  const activeOpps = opportunities.filter(o => ['open', 'inProgress'].includes(o.status));
+  const needsWaiting = needs.filter(n => ['open', 'matching'].includes(n.status));
+  const orgsFollowUp = organizations.filter(o => o.nextFollowUpAt && new Date(o.nextFollowUpAt).getTime() <= new Date().getTime());
+  const draftOutcomes = outcomes.filter(o => o.verificationStatus === 'pending');
   
   return (
     <section className="workbench max-w-5xl mx-auto">
       <div className="flex justify-between items-end mb-2">
         <div>
           <h2 className="text-2xl font-bold">Command Center</h2>
-          <p className="text-[var(--muted)]">Focus on today's priorities</p>
+          <p className="text-[var(--muted)]">Your next actions to keep The Guild moving.</p>
         </div>
       </div>
 
@@ -58,86 +56,82 @@ export function ReceptionistDashboard({ opportunities, quests, submissions, outc
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column: Immediate Actions */}
         <div className="space-y-6">
+          
           <section className="panel p-0 overflow-hidden">
             <div className="bg-yellow-500/10 border-b border-[var(--border)] p-4 flex justify-between items-center">
-              <h3 className="text-yellow-700 dark:text-yellow-500 font-bold flex items-center gap-2"><Bell size={18} /> Pending Verifications</h3>
-              <StatusBadge status={pendingSubs.length + ' waiting'} />
+              <h3 className="text-yellow-700 dark:text-yellow-500 font-bold flex items-center gap-2"><Bell size={18} /> My Next Actions</h3>
+              <StatusBadge status={(pendingSubs.length + needsWaiting.length + orgsFollowUp.length + draftOutcomes.length) + ' tasks'} />
             </div>
             <div className="p-0">
-              {pendingSubs.slice(0, 5).map(sub => (
-                <div key={sub.id} className="border-b border-[var(--border)] last:border-0 p-4 hover:bg-[var(--bg-alt)] flex justify-between items-center cursor-pointer transition-colors" onClick={() => navigate(`/submissions/${sub.id}`)}>
+              {orgsFollowUp.slice(0, 3).map(org => (
+                <div key={org.id} className="border-b border-[var(--border)] last:border-0 p-4 hover:bg-[var(--bg-alt)] flex justify-between items-center cursor-pointer transition-colors" onClick={() => navigate(`/organizations/${org.id}`)}>
                   <div>
-                    <strong className="block text-sm">{sub.questTitle || sub.questId}</strong>
-                    <span className="text-xs text-[var(--muted)]">By: {sub.memberId}</span>
+                    <strong className="block text-sm">Call {org.name}</strong>
+                    <span className="text-xs text-[var(--muted)]">Contact: {org.contactPerson}</span>
                   </div>
-                  <button className="primary text-xs px-3 py-1">Review</button>
+                  <button className="secondary bg-[var(--bg-alt)] text-xs px-3 py-1 flex items-center gap-1"><PhoneCall size={12}/> Follow Up</button>
                 </div>
               ))}
-              {pendingSubs.length === 0 && <div className="p-8 text-center text-[var(--muted)]">No pending verifications.</div>}
-              {pendingSubs.length > 5 && <div className="p-3 text-center border-t border-[var(--border)]"><button className="ghost text-xs w-full" onClick={() => navigate('/submissions')}>View all {pendingSubs.length}</button></div>}
+              {needsWaiting.slice(0, 3).map(need => (
+                <div key={need.id} className="border-b border-[var(--border)] last:border-0 p-4 hover:bg-[var(--bg-alt)] flex justify-between items-center cursor-pointer transition-colors" onClick={() => navigate(`/needs/${need.id}`)}>
+                  <div>
+                    <strong className="block text-sm">Convert: {need.title}</strong>
+                    <span className="text-xs text-[var(--muted)]">{need.organizationName}</span>
+                  </div>
+                  <button className="primary bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1">Assign</button>
+                </div>
+              ))}
+              {pendingSubs.slice(0, 3).map(sub => (
+                <div key={sub.id} className="border-b border-[var(--border)] last:border-0 p-4 hover:bg-[var(--bg-alt)] flex justify-between items-center cursor-pointer transition-colors" onClick={() => navigate(`/submissions/${sub.id}`)}>
+                  <div>
+                    <strong className="block text-sm">Verify: {sub.questTitle || sub.questId}</strong>
+                    <span className="text-xs text-[var(--muted)]">By: {sub.memberId}</span>
+                  </div>
+                  <button className="primary bg-green-600 hover:bg-green-700 text-xs px-3 py-1">Review</button>
+                </div>
+              ))}
+              {draftOutcomes.slice(0, 3).map(out => (
+                <div key={out.id} className="border-b border-[var(--border)] last:border-0 p-4 hover:bg-[var(--bg-alt)] flex justify-between items-center cursor-pointer transition-colors" onClick={() => navigate(`/outcomes/${out.id}`)}>
+                  <div>
+                    <strong className="block text-sm">Record: {out.title}</strong>
+                    <span className="text-xs text-[var(--muted)]">{out.organizationName}</span>
+                  </div>
+                  <button className="primary text-xs px-3 py-1">Finalize</button>
+                </div>
+              ))}
+
+              {(pendingSubs.length + needsWaiting.length + orgsFollowUp.length + draftOutcomes.length) === 0 && (
+                <div className="p-8 text-center text-[var(--muted)]">Inbox Zero! You are all caught up.</div>
+              )}
             </div>
           </section>
 
-          <section className="panel p-0 overflow-hidden">
-            <div className="bg-blue-500/10 border-b border-[var(--border)] p-4 flex justify-between items-center">
-              <h3 className="text-blue-700 dark:text-blue-400 font-bold flex items-center gap-2"><CheckCircle size={18} /> Draft Outcomes</h3>
-              <StatusBadge status={recentOutcomes.length + ' pending'} />
-            </div>
-            <div className="p-0">
-              {recentOutcomes.slice(0, 5).map(out => (
-                <div key={out.id} className="border-b border-[var(--border)] last:border-0 p-4 hover:bg-[var(--bg-alt)] flex justify-between items-center cursor-pointer transition-colors" onClick={() => navigate(`/outcomes`)}>
-                  <div>
-                    <strong className="block text-sm">{out.title}</strong>
-                    <span className="text-xs text-[var(--muted)]">{out.organizationName}</span>
-                  </div>
-                  <button className="primary bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1">Finalize</button>
-                </div>
-              ))}
-              {recentOutcomes.length === 0 && <div className="p-8 text-center text-[var(--muted)]">No draft outcomes.</div>}
-            </div>
-          </section>
         </div>
 
         {/* Right Column: Tracking */}
         <div className="space-y-6">
           <section className="panel p-0 overflow-hidden">
-            <div className="bg-purple-500/10 border-b border-[var(--border)] p-4 flex justify-between items-center">
-              <h3 className="text-purple-700 dark:text-purple-400 font-bold flex items-center gap-2"><ClipboardCheck size={18} /> Active Quests</h3>
-              <StatusBadge status={activeQuests.length + ' active'} />
-            </div>
-            <div className="p-0">
-              {activeQuests.slice(0, 5).map(q => (
-                <div key={q.id} className="border-b border-[var(--border)] last:border-0 p-4 flex justify-between items-center">
-                  <div>
-                    <strong className="block text-sm truncate max-w-[200px]">{q.title}</strong>
-                    <span className="text-xs text-[var(--muted)]">{q.ownerId ? `Owner: ${q.ownerId}` : 'Unassigned'}</span>
-                  </div>
-                  <StatusBadge status="active" />
-                </div>
-              ))}
-              {activeQuests.length === 0 && <div className="p-8 text-center text-[var(--muted)]">No active quests.</div>}
-            </div>
-          </section>
-
-          <section className="panel p-0 overflow-hidden">
             <div className="bg-[var(--card)] border-b border-[var(--border)] p-4 flex justify-between items-center">
-              <h3 className="font-bold flex items-center gap-2"><Calendar size={18} /> Today's Pipeline</h3>
+              <h3 className="font-bold flex items-center gap-2"><Calendar size={18} /> Today's Pipeline Overview</h3>
             </div>
             <div className="p-4 space-y-4">
-               {/* Very simple progress summary */}
                <div className="flex justify-between items-center">
-                 <span className="text-sm font-medium">Opportunities In Progress</span>
-                 <strong className="text-lg">{activeOpps.length}</strong>
+                 <span className="text-sm font-medium">Organizations to Contact</span>
+                 <strong className="text-lg text-yellow-500">{orgsFollowUp.length}</strong>
+               </div>
+               <div className="flex justify-between items-center">
+                 <span className="text-sm font-medium">Needs Waiting</span>
+                 <strong className="text-lg text-blue-500">{needsWaiting.length}</strong>
                </div>
                <div className="flex justify-between items-center">
                  <span className="text-sm font-medium">Pending Verifications</span>
-                 <strong className="text-lg">{pendingSubs.length}</strong>
+                 <strong className="text-lg text-green-500">{pendingSubs.length}</strong>
                </div>
                <div className="flex justify-between items-center">
                  <span className="text-sm font-medium">Draft Outcomes</span>
-                 <strong className="text-lg">{recentOutcomes.length}</strong>
+                 <strong className="text-lg">{draftOutcomes.length}</strong>
                </div>
-               <button className="w-full ghost text-sm mt-2" onClick={() => navigate('/')}>View Full Dashboard &rarr;</button>
+               <button className="w-full ghost text-sm mt-2" onClick={() => navigate('/organizations')}>View Organizations Directory &rarr;</button>
             </div>
           </section>
         </div>

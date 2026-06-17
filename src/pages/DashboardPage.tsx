@@ -8,6 +8,7 @@ import { MemberDashboard } from '../components/dashboards/MemberDashboard';
 import { ReceptionistDashboard } from '../components/dashboards/ReceptionistDashboard';
 import { ManagerDashboard } from '../components/dashboards/ManagerDashboard';
 import { AdminDashboard } from '../components/dashboards/AdminDashboard';
+import { FounderDashboard } from '../components/dashboards/FounderDashboard';
 
 function useCollection<T>(name: string, constraints: any[] = []) {
   const [items, setItems] = useState<T[]>([]);
@@ -65,6 +66,10 @@ export function DashboardPage() {
 
   if (profile.role === 'guildManager') {
     return <ManagerDashboard metrics={metrics} {...props} />;
+  }
+
+  if (profile.role === 'founder') {
+    return <FounderDashboard />;
   }
 
   // Fallback for guildAdmin and others
