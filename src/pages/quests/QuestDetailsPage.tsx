@@ -7,6 +7,7 @@ import type { Quest, QuestSubmission, GuildUser, Outcome, KnowledgeRecord, Reven
 import { where } from 'firebase/firestore';
 import { MemberSearch } from '../../components/MemberSearch';
 import { ChevronDown, ChevronRight, FileText, CheckCircle, IndianRupee, ShieldCheck, History, BookOpen, Building, MapPin, Users } from 'lucide-react';
+import { assignMemberToQuest } from '../../services/workflowService';
 
 // Reusable Section Component
 function CollapsibleSection({ title, icon, children, defaultOpen = false }: { title: string, icon: React.ReactNode, children: React.ReactNode, defaultOpen?: boolean }) {
@@ -63,31 +64,40 @@ export function QuestDetailsPage() {
 
   async function handleAssignMember(user: GuildUser) {
     if (!quest || !profile) return;
-    const newMembers = [...(quest.assignedMembers || []), user.uid];
-    await updateLedgerRecord('quests', quest.id, { 
-      assignedMembers: newMembers,
-      status: quest.status === 'open' ? 'assigned' : quest.status
-    }, profile, `Assigned Member ${user.uid}`);
-    setQuest({ ...quest, assignedMembers: newMembers, status: quest.status === 'open' ? 'assigned' : quest.status });
+    try {
+      await assignMemberToQuest(quest.id, user.uid, profile);
+      // Refresh local state or rely on subscription
+      const updated = await getRecord('quests', quest.id);
+      if (updated) setQuest(updated as Quest);
+    } catch (err: any) {
+      alert(err.message);
+    }
   }
 
   async function handleApply() {
     if (!quest || !profile) return;
-    const newApplicants = [...(quest.applicants || []), profile.uid];
-    await updateLedgerRecord('quests', quest.id, { applicants: newApplicants }, profile, 'Applied for Quest');
-    setQuest({ ...quest, applicants: newApplicants });
+    // For applicants, we could also use a transaction, but let's at least use optimistic locking
+    try {
+      const newApplicants = [...(quest.applicants || []), profile.uid];
+      await updateLedgerRecord('quests', quest.id, { applicants: newApplicants }, profile, 'Applied for Quest', { checkUpdatedAt: quest.updatedAt });
+      setQuest({ ...quest, applicants: newApplicants, updatedAt: new Date().toISOString() });
+    } catch (err: any) {
+      alert(err.message);
+    }
   }
 
   async function handleAcceptApplicant(uid: string) {
     if (!quest || !profile) return;
-    const newMembers = [...(quest.assignedMembers || []), uid];
-    const newApplicants = (quest.applicants || []).filter(a => a !== uid);
-    await updateLedgerRecord('quests', quest.id, { 
-      assignedMembers: newMembers, 
-      applicants: newApplicants,
-      status: quest.status === 'open' ? 'assigned' : quest.status
-    }, profile, `Accepted Applicant ${uid}`);
-    setQuest({ ...quest, assignedMembers: newMembers, applicants: newApplicants, status: quest.status === 'open' ? 'assigned' : quest.status });
+    try {
+      await assignMemberToQuest(quest.id, uid, profile);
+      // Also remove from applicants
+      const newApplicants = (quest.applicants || []).filter(a => a !== uid);
+      await updateLedgerRecord('quests', quest.id, { applicants: newApplicants }, profile, `Accepted Applicant ${uid}`);
+      const updated = await getRecord('quests', quest.id);
+      if (updated) setQuest(updated as Quest);
+    } catch (err: any) {
+      alert(err.message);
+    }
   }
 
   if (!quest) return <p className="p-8">Loading official guild record...</p>;

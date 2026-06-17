@@ -67,6 +67,11 @@ export async function spawnQuestForOpportunity(
   questData: Partial<Quest>, 
   profile: GuildUser
 ) {
+  // Validation: No negative money
+  if ((questData.paymentAmount || 0) < 0 || (questData.estimatedValue || 0) < 0) {
+    throw new Error('Financial values cannot be negative.');
+  }
+
   const quest = await createLedgerRecord('quests', {
     ...questData,
     opportunityId: opportunity.id,
@@ -83,23 +88,55 @@ export async function spawnQuestForOpportunity(
     reputationPoints: questData.reputationPoints || 10,
     isMandatory: questData.isMandatory !== undefined ? questData.isMandatory : true,
     guildQuestId: await generateGuildQuestId('LDH', opportunity.category || 'GEN'),
-    status: 'open'
+    status: 'open',
+    assignedMembers: [],
+    applicants: []
   }, profile, 'Quest Spawned');
 
-  if (quest.ownerId) {
-    await createLedgerRecord('notifications', {
-      userId: quest.ownerId,
-      type: 'quest_assigned',
-      title: 'New Quest Assigned',
-      body: `You have been assigned to: ${quest.title}`,
-      read: false,
-      channel: 'inApp',
-      futureChannels: ['email'],
-      actionUrl: `/quests/${quest.id}`
-    }, profile, 'Notification Sent', true);
-  }
-
   return quest;
+}
+
+// 2.1 Transactional Assignment
+export async function assignMemberToQuest(
+  questId: string,
+  memberId: string,
+  profile: GuildUser
+) {
+  return await runTransaction(db, async (transaction) => {
+    const questRef = doc(db, 'quests', questId);
+    const snap = await transaction.get(questRef);
+    if (!snap.exists()) throw new Error('Quest not found');
+    const quest = snap.data() as Quest;
+
+    if (quest.status === 'completed' || quest.status === 'closed' || quest.status === 'archived') {
+      throw new Error(`Cannot assign to quest in status: ${quest.status}`);
+    }
+
+    const assigned = quest.assignedMembers || [];
+    if (assigned.includes(memberId)) throw new Error('Member already assigned');
+
+    if (quest.membersRequired && assigned.length >= quest.membersRequired) {
+      throw new Error('Quest capacity reached');
+    }
+
+    const newAssigned = [...assigned, memberId];
+    const newStatus = quest.status === 'open' ? 'assigned' : quest.status;
+
+    transaction.update(questRef, {
+      assignedMembers: newAssigned,
+      status: newStatus,
+      updatedAt: new Date().toISOString()
+    });
+
+    // Log Activity
+    await logActivity({
+      userId: profile.uid,
+      userName: profile.fullName,
+      action: `Member ${memberId} assigned to quest ${questId}`,
+      relatedEntityType: 'quests',
+      relatedEntityId: questId
+    });
+  });
 }
 
 // 3. Complete Opportunity Check

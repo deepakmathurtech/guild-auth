@@ -8,6 +8,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -121,13 +122,33 @@ export async function updateLedgerRecord<K extends keyof EntityMap>(
   id: string,
   patch: Partial<EntityMap[K]>,
   actor: GuildUser,
-  action: string
+  action: string,
+  options: { checkUpdatedAt?: string } = {}
 ) {
-  await updateDoc(doc(db, collectionName, id), {
-    ...patch,
-    updatedAt: nowIso(),
-    updatedAtServer: serverTimestamp()
-  } as DocumentData);
+  const ref = doc(db, collectionName, id);
+  
+  if (options.checkUpdatedAt) {
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists()) throw new Error('Record not found');
+      const data = snapshot.data() as any;
+      if (data.updatedAt !== options.checkUpdatedAt) {
+        throw new Error('CONCURRENCY_ERROR: Record was modified by another user.');
+      }
+      transaction.update(ref, {
+        ...patch,
+        updatedAt: nowIso(),
+        updatedAtServer: serverTimestamp()
+      } as DocumentData);
+    });
+  } else {
+    await updateDoc(ref, {
+      ...patch,
+      updatedAt: nowIso(),
+      updatedAtServer: serverTimestamp()
+    } as DocumentData);
+  }
+
   await logActivity({
     userId: actor.uid,
     userName: actor.fullName,
@@ -135,6 +156,10 @@ export async function updateLedgerRecord<K extends keyof EntityMap>(
     relatedEntityType: collectionName as LedgerCollection,
     relatedEntityId: id
   });
+}
+
+export async function runInTransaction<T>(work: (transaction: any) => Promise<T>) {
+  return runTransaction(db, work);
 }
 
 export async function archiveLedgerRecord<K extends keyof EntityMap>(collectionName: K, id: string, actor: GuildUser) {
@@ -171,7 +196,19 @@ export async function addInteraction(orgId: string, actor: GuildUser, summary: s
   } as any, actor, 'Interaction recorded');
 }
 
-export async function createNotification(input: Omit<NotificationRecord, 'id' | keyof AuditFields>, actor: GuildUser) {
-  return createLedgerRecord('notifications', input, actor, 'Notification created');
-}
+export async function searchRecords<K extends keyof EntityMap>(
+  collectionName: K,
+  constraints: QueryConstraint[] = [],
+  pageSize: number = 20,
+  startAfterDoc?: any
+) {
+  const finalConstraints = [...constraints];
+  if (startAfterDoc) finalConstraints.push(startAfterDoc);
+  finalConstraints.push(limit(pageSize));
 
+  const snapshot = await getDocs(query(collection(db, collectionName), ...finalConstraints));
+  const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+  const items = snapshot.docs.map((item) => item.data() as EntityMap[K]);
+  
+  return { items, lastVisible };
+}

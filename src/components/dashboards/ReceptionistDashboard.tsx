@@ -1,8 +1,10 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { StatusBadge } from '../StatusBadge';
 import { Bell, BriefcaseBusiness, Calendar, CheckCircle, ClipboardCheck, Sparkles, AlertTriangle, PhoneCall } from 'lucide-react';
 import type { ActivityLog, Need, Opportunity, Organization, QuestSubmission, RevenueEvent, VerificationRecord, Quest, Outcome } from '../../types/guild';
+import { auditQuestHealth, auditOrganizationHealth, type HealthIssue } from '../../services/healthService';
 
 interface Props {
   organizations: Organization[];
@@ -24,6 +26,16 @@ export function ReceptionistDashboard({ organizations, needs, opportunities, que
   const orgsFollowUp = organizations.filter(o => o.nextFollowUpAt && new Date(o.nextFollowUpAt).getTime() <= new Date().getTime());
   const draftOutcomes = outcomes.filter(o => o.verificationStatus === 'pending');
   const incompleteQuests = quests.filter(q => (q.completenessScore || 0) < 100 && q.status !== 'archived');
+
+  const healthIssues = useMemo(() => {
+    const issues: HealthIssue[] = [];
+    quests.forEach(q => issues.push(...auditQuestHealth(q)));
+    organizations.forEach(o => issues.push(...auditOrganizationHealth(o, quests.filter(q => q.organizationId === o.id))));
+    return issues.sort((a, b) => {
+      const priority = { CRITICAL: 0, WARNING: 1, INFO: 2 };
+      return priority[a.type as keyof typeof priority] - priority[b.type as keyof typeof priority];
+    });
+  }, [quests, organizations]);
   
   return (
     <section className="workbench max-w-5xl mx-auto">
@@ -58,6 +70,25 @@ export function ReceptionistDashboard({ organizations, needs, opportunities, que
         {/* Left Column: Immediate Actions */}
         <div className="space-y-6">
           
+          <section className="panel p-0 overflow-hidden">
+            <div className="bg-red-500/10 border-b border-[var(--border)] p-4 flex justify-between items-center">
+              <h3 className="text-red-700 dark:text-red-500 font-bold flex items-center gap-2"><AlertTriangle size={18} /> Operational Alerts</h3>
+              <StatusBadge status={healthIssues.length + ' issues'} />
+            </div>
+            <div className="p-0 max-h-[400px] overflow-y-auto">
+              {healthIssues.map((issue, idx) => (
+                <div key={`${issue.entityId}-${idx}`} className="border-b border-[var(--border)] p-4 flex justify-between items-start cursor-pointer hover:bg-[var(--bg-alt)] transition-colors" onClick={() => navigate(`/${issue.entityType}s/${issue.entityId}`)}>
+                  <div>
+                    <strong className={`block text-sm ${issue.type === 'CRITICAL' ? 'text-red-500' : issue.type === 'WARNING' ? 'text-yellow-500' : ''}`}>{issue.message}</strong>
+                    <span className="text-xs text-[var(--muted)]">Fix: {issue.fix}</span>
+                  </div>
+                  <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${issue.type === 'CRITICAL' ? 'bg-red-500/20 text-red-500' : issue.type === 'WARNING' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-blue-500/20 text-blue-500'}`}>{issue.type}</span>
+                </div>
+              ))}
+              {healthIssues.length === 0 && <div className="p-8 text-center text-[var(--muted)]">No operational issues detected.</div>}
+            </div>
+          </section>
+
           <section className="panel p-0 overflow-hidden">
             <div className="bg-yellow-500/10 border-b border-[var(--border)] p-4 flex justify-between items-center">
               <h3 className="text-yellow-700 dark:text-yellow-500 font-bold flex items-center gap-2"><Bell size={18} /> My Next Actions</h3>
