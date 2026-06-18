@@ -64,6 +64,17 @@ export function LoginPage() {
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
     setError('');
+    
+    // Validation
+    if (!fullName || !email || !password || !cityName) {
+      setError('Required: Name, Email, Password, and City.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Security: Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
     try {
       const stateObj = INDIAN_STATES.find(s => s.name === stateName)!;
@@ -72,23 +83,23 @@ export function LoginPage() {
         countryName: 'India',
         stateId: stateObj.id,
         stateName: stateObj.name,
-        cityId: cityName.toLowerCase().substring(0, 3),
-        cityName: cityName
+        cityId: cityName.toLowerCase().trim().substring(0, 3),
+        cityName: cityName.trim()
       };
       
       await registerWithEmail(
-        email, 
+        email.trim(), 
         password, 
-        fullName, 
+        fullName.trim(), 
         jurisdiction, 
-        skills.split(',').map(s => s.trim()), 
-        interests.split(',').map(i => i.trim()),
+        skills.split(',').map(s => s.trim()).filter(Boolean), 
+        interests.split(',').map(i => i.trim()).filter(Boolean),
         {
-          phone,
-          availability,
-          emergencyContact,
-          preferredRole,
-          referralSource
+          phone: phone.trim(),
+          availability: availability.trim(),
+          emergencyContact: emergencyContact.trim(),
+          preferredRole: preferredRole.trim(),
+          referralSource: referralSource.trim()
         }
       );
     } catch (err: any) {

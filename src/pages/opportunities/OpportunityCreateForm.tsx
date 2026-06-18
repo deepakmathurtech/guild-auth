@@ -27,7 +27,7 @@ export function OpportunityCreateForm({ initialData = {}, onSuccess, onCancel }:
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!profile) return;
-    setStatus('Saving...');
+    setStatus('Synchronizing Ledger...');
     try {
       // Stress Test: Duplicate Detection
       const existing = await detectDuplicates('opportunities', 'title', form.title);
@@ -60,10 +60,11 @@ export function OpportunityCreateForm({ initialData = {}, onSuccess, onCancel }:
         }, profile, 'Opportunity Created');
       }
 
-      setStatus('');
       onSuccess();
     } catch (err: any) {
-      setStatus(err.message || 'Save failed.');
+      setStatus(err.message || 'Operation failed.');
+    } finally {
+      setStatus('');
     }
   }
 

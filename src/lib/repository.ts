@@ -112,18 +112,23 @@ export async function logActivity(input: Omit<ActivityLog, 'id' | 'time'>) {
 export async function detectDuplicates<K extends keyof EntityMap>(
   collectionName: K,
   field: string,
-  value: string
+  value: string,
+  jurisdictionFilter?: boolean
 ) {
   const searchField = field === 'name' || field === 'title' ? 'searchName' : field;
   const searchValue = (field === 'name' || field === 'title') ? value.toLowerCase() : value;
 
-  const snapshot = await getDocs(query(
-    collection(db, collectionName),
+  const constraints: QueryConstraint[] = [
     where(searchField, '==', searchValue),
     where('archiveStatus', '==', 'active'),
     limit(5)
+  ];
+
+  const snapshot = await getDocs(query(
+    collection(db, collectionName),
+    ...constraints
   ));
-  return snapshot.docs.map(doc => doc.data() as EntityMap[K]);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EntityMap[K]));
 }
 
 export async function createLedgerRecord<K extends keyof EntityMap>(
@@ -141,7 +146,9 @@ export async function createLedgerRecord<K extends keyof EntityMap>(
     ownerId: (data as any).ownerId || actor.uid,
     createdAtServer: serverTimestamp()
   } as unknown as EntityMap[K];
+  
   await setDoc(ref, record as DocumentData);
+  
   if (!silent) {
     await logActivity({
       userId: actor.uid,
@@ -164,35 +171,40 @@ export async function updateLedgerRecord<K extends keyof EntityMap>(
 ) {
   const ref = doc(db, collectionName, id);
   
-  if (options.checkUpdatedAt) {
-    await runTransaction(db, async (transaction) => {
-      const snapshot = await transaction.get(ref);
-      if (!snapshot.exists()) throw new Error('Record not found');
-      const data = snapshot.data() as any;
-      if (data.updatedAt !== options.checkUpdatedAt) {
-        throw new Error('CONCURRENCY_ERROR: Record was modified by another user.');
-      }
-      transaction.update(ref, {
+  try {
+    if (options.checkUpdatedAt) {
+      await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists()) throw new Error('Record not found');
+        const data = snapshot.data() as any;
+        if (data.updatedAt !== options.checkUpdatedAt) {
+          throw new Error('CONCURRENCY_ERROR: Record was modified by another user. Please refresh and try again.');
+        }
+        transaction.update(ref, {
+          ...patch,
+          updatedAt: nowIso(),
+          updatedAtServer: serverTimestamp()
+        } as DocumentData);
+      });
+    } else {
+      await updateDoc(ref, {
         ...patch,
         updatedAt: nowIso(),
         updatedAtServer: serverTimestamp()
       } as DocumentData);
-    });
-  } else {
-    await updateDoc(ref, {
-      ...patch,
-      updatedAt: nowIso(),
-      updatedAtServer: serverTimestamp()
-    } as DocumentData);
-  }
+    }
 
-  await logActivity({
-    userId: actor.uid,
-    userName: actor.fullName,
-    action,
-    relatedEntityType: collectionName as LedgerCollection,
-    relatedEntityId: id
-  });
+    await logActivity({
+      userId: actor.uid,
+      userName: actor.fullName,
+      action,
+      relatedEntityType: collectionName as LedgerCollection,
+      relatedEntityId: id
+    });
+  } catch (err: any) {
+    console.error('Update Ledger Error:', err);
+    throw err;
+  }
 }
 
 export async function runInTransaction<T>(work: (transaction: any) => Promise<T>) {
