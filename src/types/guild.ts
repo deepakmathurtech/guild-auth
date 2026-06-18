@@ -433,21 +433,49 @@ export interface ActivityLog {
 
 export type NotificationType = 
   | "quest_assigned"
+  | "quest_application"
+  | "quest_accepted"
+  | "quest_removed"
+  | "quest_overdue"
   | "submission_verified"
+  | "submission_rejected"
+  | "submission_pending"
   | "opportunity_completed"
   | "revenue_recorded"
+  | "application_submitted"
+  | "application_approved"
+  | "application_rejected"
+  | "rank_promotion"
+  | "role_assignment"
+  | "verification_pending"
+  | "organization_assigned"
+  | "escalation_received"
+  | "city_health_warning"
+  | "inactive_receptionist"
+  | "state_no_leadership"
+  | "emergency_succession"
+  | "critical_audit_issue"
+  | "security_issue"
   | "general_alert";
+
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical';
+export type NotificationStatus = 'unread' | 'read' | 'dismissed' | 'archived';
 
 export interface NotificationRecord extends AuditFields {
   id: string;
   userId: string;
   type: NotificationType;
+  priority: NotificationPriority;
+  status: NotificationStatus;
   title: string;
   body: string;
-  read: boolean;
+  read: boolean; // Keep for backward compatibility if needed, but status is preferred
   channel: 'inApp' | 'email' | 'whatsapp' | 'sms';
   futureChannels: Array<'email' | 'whatsapp' | 'sms'>;
   actionUrl?: string;
+  metadata?: Record<string, unknown>;
+  aggregatedCount?: number;
+  lastOccurrence?: string;
 }
 
 export interface DashboardMetric {

@@ -1,4 +1,5 @@
-import type { Quest, Opportunity, Organization, Need } from '../types/guild';
+import type { Quest, Opportunity, Organization, Need, GuildUser, Jurisdiction } from '../types/guild';
+import { StatsService } from './statsService';
 
 /**
  * healthService.ts
@@ -12,7 +13,7 @@ export interface HealthIssue {
   message: string;
   fix: string;
   entityId: string;
-  entityType: 'quest' | 'opportunity' | 'organization' | 'need';
+  entityType: 'quest' | 'opportunity' | 'organization' | 'need' | 'user' | 'jurisdiction';
 }
 
 export function auditQuestHealth(quest: Quest): HealthIssue[] {
@@ -97,6 +98,35 @@ export function auditOrganizationHealth(org: Organization, quests: Quest[]): Hea
   return issues;
 }
 
+export async function auditJurisdictionHealth(jurisdiction: Partial<Jurisdiction>): Promise<HealthIssue[]> {
+  const issues: HealthIssue[] = [];
+  const stats = await StatsService.getJurisdictionStats(jurisdiction);
+
+  // 1. Low member count
+  if (stats.totalMembers < 5) {
+    issues.push({
+      type: 'WARNING',
+      message: 'Low member density in this jurisdiction.',
+      fix: 'Initiate recruitment drive.',
+      entityId: jurisdiction.cityId || jurisdiction.stateId || 'root',
+      entityType: 'jurisdiction'
+    });
+  }
+
+  // 2. Low activity
+  if (stats.totalQuests === 0 && stats.totalOrganizations > 0) {
+    issues.push({
+      type: 'WARNING',
+      message: 'Active organizations but zero quests.',
+      fix: 'Receptionist outreach required to convert needs.',
+      entityId: jurisdiction.cityId || jurisdiction.stateId || 'root',
+      entityType: 'jurisdiction'
+    });
+  }
+
+  return issues;
+}
+
 export function calculateQuestCompleteness(quest: Quest): number {
   let score = 0;
   let total = 0;
@@ -121,3 +151,4 @@ export function calculateQuestCompleteness(quest: Quest): number {
 
   return Math.round((score / total) * 100);
 }
+

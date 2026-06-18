@@ -1,9 +1,10 @@
 import { createLedgerRecord, updateLedgerRecord, getRecord, listRecords, logActivity } from '../lib/repository';
-import type { GuildUser, Need, Opportunity, Quest, QuestSubmission, GuildRole, QuestStatus } from '../types/guild';
+import type { GuildUser, Need, Opportunity, Quest, QuestSubmission, GuildRole, QuestStatus, SubmissionStatus } from '../types/guild';
 import { db } from '../lib/firebase';
 import { doc, getDoc, updateDoc, increment, collection, query, getDocs, where, runTransaction } from 'firebase/firestore';
 import { getStateByName, getCityCode } from '../lib/jurisdiction';
 import { roleWeight } from '../lib/rbac';
+import { NotificationService } from './notificationService';
 
 /**
  * workflowService.ts
@@ -106,11 +107,6 @@ export async function spawnQuestForOpportunity(
     throw new Error('Logic Error: Financial values cannot be negative.');
   }
 
-  if (amount > 0 && amount !== (revenue + payout)) {
-    // Audit: Revenue tracking check
-    console.warn('Revenue Audit: Payment amount does not match Revenue + Payout sum.');
-  }
-
   const questId = await generateGuildQuestId(
     profile.jurisdiction.cityName, 
     opportunity.category || 'GEN',
@@ -135,7 +131,9 @@ export async function spawnQuestForOpportunity(
     guildQuestId: questId,
     status: 'open',
     assignedMembers: [],
-    applicants: []
+    applicants: [],
+    assignedReceptionistId: profile.uid,
+    assignedReceptionistName: profile.fullName
   }, profile, 'Quest Spawned');
 
   return quest;
@@ -185,7 +183,45 @@ export async function assignMemberToQuest(
       relatedEntityType: 'quests',
       relatedEntityId: questId
     });
+
+    // Notify Member
+    await NotificationService.notify(
+      memberId,
+      'quest_accepted',
+      'Accepted to Quest',
+      `You have been accepted to the quest: ${quest.title}. Status: ${newStatus}`,
+      'medium',
+      profile,
+      { actionUrl: `/quests/${questId}` }
+    );
   });
+}
+
+export async function removeMemberFromQuest(
+  questId: string,
+  memberId: string,
+  profile: GuildUser
+) {
+  const quest = await getRecord('quests', questId);
+  if (!quest) throw new Error('Quest not found');
+
+  const newAssigned = (quest.assignedMembers || []).filter(id => id !== memberId);
+  const newStatus: QuestStatus = newAssigned.length > 0 ? quest.status : 'open';
+
+  await updateLedgerRecord('quests', questId, {
+    assignedMembers: newAssigned,
+    status: newStatus
+  }, profile, `Member ${memberId} removed from quest`);
+
+  await NotificationService.notify(
+    memberId,
+    'quest_removed',
+    'Removed from Quest',
+    `You have been removed from the quest: ${quest.title}.`,
+    'high',
+    profile,
+    { actionUrl: `/quests/${questId}` }
+  );
 }
 
 // 3. Complete Opportunity Check
@@ -220,16 +256,15 @@ export async function checkOpportunityCompletion(opportunityId: string, profile:
       lessonsLearned: ''
     }, profile, 'Auto-Drafted Outcome');
 
-    await createLedgerRecord('notifications', {
-      userId: opp.assignedReceptionist || profile.uid,
-      type: 'opportunity_completed',
-      title: 'Opportunity Completed',
-      body: `The opportunity "${opp.title}" has completed all mandatory quests. An outcome draft is ready.`,
-      read: false,
-      channel: 'inApp',
-      futureChannels: ['email'],
-      actionUrl: '/outcomes'
-    }, profile, 'Notification Sent', true);
+    await NotificationService.notify(
+      opp.assignedReceptionist || profile.uid,
+      'opportunity_completed',
+      'Opportunity Completed',
+      `The opportunity "${opp.title}" has completed all mandatory quests. An outcome draft is ready.`,
+      'high',
+      profile,
+      { actionUrl: '/outcomes' }
+    );
   }
 }
 
@@ -287,11 +322,28 @@ export async function approveSubmission(
               requestedRank: 'D',
               status: 'pending'
             } as any, profile, 'Rank Review Ticket Auto-Generated');
+            
+            await NotificationService.notify(
+              u.uid,
+              'rank_promotion',
+              'Rank Review Initiated',
+              'You have met the requirements for Rank D. A review ticket has been generated.',
+              'high',
+              profile
+            );
           }
         }
         
         if (newRank !== u.guildRank) {
           await updateDoc(userRef, { guildRank: newRank });
+          await NotificationService.notify(
+            u.uid,
+            'rank_promotion',
+            'Rank Promoted!',
+            `Congratulations! Your rank has been promoted to ${newRank}.`,
+            'high',
+            profile
+          );
         }
       }
       
@@ -303,15 +355,15 @@ export async function approveSubmission(
         relatedEntityId: submission.memberId
       }); 
 
-      await createLedgerRecord('notifications', {
-        userId: submission.memberId,
-        type: 'submission_verified',
-        title: 'Submission Verified!',
-        body: `Your submission for "${quest.title}" was approved. You earned ${quest.reputationPoints || 0} Rep.`,
-        read: false,
-        channel: 'inApp',
-        futureChannels: ['email']
-      }, profile, 'Notification Sent', true);
+      await NotificationService.notify(
+        submission.memberId,
+        'submission_verified',
+        'Submission Verified!',
+        `Your submission for "${quest.title}" was approved. You earned ${quest.reputationPoints || 0} Rep.`,
+        'high',
+        profile,
+        { actionUrl: `/quests/${quest.id}` }
+      );
     }
 
     if (quest.opportunityId) {
@@ -329,8 +381,42 @@ export async function approveSubmission(
         date: new Date().toISOString(),
         participants: [submission.memberId]
       }, profile, 'Revenue Event Auto-Generated on Approval');
+      
+      await NotificationService.notify(
+        submission.memberId,
+        'revenue_recorded',
+        'Payment Recorded',
+        `A payment event for "${quest.title}" has been recorded.`,
+        'medium',
+        profile
+      );
     }
   }
+}
+
+export async function rejectSubmission(
+  submission: QuestSubmission,
+  profile: GuildUser,
+  notes: string
+) {
+  await updateLedgerRecord('questSubmissions', submission.id, {
+    status: 'rejected',
+    reviewerId: profile.uid,
+    reviewerNotes: notes,
+    reviewedAt: new Date().toISOString()
+  }, profile, 'Submission Rejected');
+
+  const quest = await getRecord('quests', submission.questId);
+  
+  await NotificationService.notify(
+    submission.memberId,
+    'submission_rejected',
+    'Submission Rejected',
+    `Your submission for "${quest?.title || 'Quest'}" was rejected. Reason: ${notes}`,
+    'high',
+    profile,
+    { actionUrl: `/quests/${submission.questId}` }
+  );
 }
 
 // 7. User Lifecycle Approval
@@ -355,13 +441,34 @@ export async function approveUserRole(
     verificationStatus: 'verified'
   } as any, profile, `Role Updated to ${newRole}: ${reason}`);
 
-  await createLedgerRecord('notifications', {
-    userId: targetUserId,
-    type: 'general_alert',
-    title: 'Profile Approved',
-    body: `Your application has been approved. You are now a ${newRole} in the Guild Federation.`,
-    read: false,
-    channel: 'inApp',
-    futureChannels: ['email']
-  }, profile, 'Approval Notification', true);
+  await NotificationService.notify(
+    targetUserId,
+    'application_approved',
+    'Profile Approved',
+    `Your application has been approved. You are now a ${newRole} in the Guild Federation.`,
+    'high',
+    profile,
+    { actionUrl: '/dashboard' }
+  );
 }
+
+export async function rejectUserRole(
+  targetUserId: string,
+  reason: string,
+  profile: GuildUser
+) {
+  await updateLedgerRecord('users', targetUserId, {
+    status: 'removed',
+    verificationStatus: 'rejected'
+  } as any, profile, `Application Rejected: ${reason}`);
+
+  await NotificationService.notify(
+    targetUserId,
+    'application_rejected',
+    'Application Rejected',
+    `Your application to the Guild has been rejected. Reason: ${reason}`,
+    'high',
+    profile
+  );
+}
+
