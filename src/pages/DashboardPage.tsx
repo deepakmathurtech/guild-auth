@@ -13,12 +13,16 @@ function useCollection<T>(name: string, constraints: any[] = []) {
 
   useEffect(() => {
     setLoading(true);
-    const unsubscribe = onSnapshot(query(collection(db, name), ...constraints), (snapshot) => {
+    const q = query(collection(db, name), ...constraints);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       setItems(snapshot.docs.map((doc) => doc.data() as T));
       setLoading(false);
-    }, () => setLoading(false));
+    }, (err) => {
+      console.error(`Collection ${name} error:`, err);
+      setLoading(false);
+    });
     return unsubscribe;
-  }, [name, JSON.stringify(constraints)]);
+  }, [name, constraints]);
 
   return { items, loading };
 }
@@ -40,43 +44,58 @@ export function DashboardPage() {
     return [...base, where('jurisdiction.cityId', '==', profile.jurisdiction.cityId)];
   }, [profile]);
 
+  // Memoize all constraint arrays to avoid infinite loops
+  const orgsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const needsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const oppsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const subsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const questsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const outcomesConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const revenueConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const verificationConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const logsConstraints = useMemo(() => [orderBy('time', 'desc'), limit(20)], []);
+
   useEffect(() => {
     if (!profile) return;
     
     // Production Scalability: Get actual counts from server for metrics
     const fetchCounts = async () => {
-      const qOrgs = query(collection(db, 'organizations'), ...jurisConstraints);
-      const qNeeds = query(collection(db, 'needs'), ...jurisConstraints, where('status', 'in', ['open', 'matching', 'assigned', 'inProgress']));
-      const qOpps = query(collection(db, 'opportunities'), ...jurisConstraints, where('status', 'in', ['open', 'matching', 'assigned', 'inProgress']));
-      const qSubs = query(collection(db, 'questSubmissions'), ...jurisConstraints, where('status', '==', 'pending'));
+      try {
+        const qOrgs = query(collection(db, 'organizations'), ...jurisConstraints);
+        const qNeeds = query(collection(db, 'needs'), ...jurisConstraints, where('status', 'in', ['open', 'matching', 'assigned', 'inProgress']));
+        const qOpps = query(collection(db, 'opportunities'), ...jurisConstraints, where('status', 'in', ['open', 'matching', 'assigned', 'inProgress']));
+        const qSubs = query(collection(db, 'questSubmissions'), ...jurisConstraints, where('status', '==', 'pending'));
 
-      const [sOrgs, sNeeds, sOpps, sSubs] = await Promise.all([
-        getCountFromServer(qOrgs),
-        getCountFromServer(qNeeds),
-        getCountFromServer(qOpps),
-        getCountFromServer(qSubs)
-      ]);
+        const [sOrgs, sNeeds, sOpps, sSubs] = await Promise.all([
+          getCountFromServer(qOrgs),
+          getCountFromServer(qNeeds),
+          getCountFromServer(qOpps),
+          getCountFromServer(qSubs)
+        ]);
 
-      setCounts({
-        organizations: sOrgs.data().count,
-        activeNeeds: sNeeds.data().count,
-        activeOpps: sOpps.data().count,
-        pendingSubmissions: sSubs.data().count
-      });
+        setCounts({
+          organizations: sOrgs.data().count,
+          activeNeeds: sNeeds.data().count,
+          activeOpps: sOpps.data().count,
+          pendingSubmissions: sSubs.data().count
+        });
+      } catch (err) {
+        console.error('Count fetch error:', err);
+      }
     };
 
     fetchCounts();
   }, [profile, jurisConstraints]);
 
-  const { items: organizations, loading: orgsLoading } = useCollection<Organization>('organizations', [...jurisConstraints, limit(200)]);
-  const { items: needs } = useCollection<Need>('needs', [...jurisConstraints, limit(200)]);
-  const { items: opportunities } = useCollection<Opportunity>('opportunities', [...jurisConstraints, limit(200)]);
-  const { items: submissions } = useCollection<QuestSubmission>('questSubmissions', [...jurisConstraints, limit(200)]);
-  const { items: quests } = useCollection<Quest>('quests', [...jurisConstraints, limit(200)]);
-  const { items: outcomes } = useCollection<Outcome>('outcomes', [...jurisConstraints, limit(200)]);
-  const { items: revenue } = useCollection<RevenueEvent>('revenueEvents', [...jurisConstraints, limit(200)]);
-  const { items: verifications } = useCollection<VerificationRecord>('verifications', [...jurisConstraints, limit(200)]);
-  const { items: logs } = useCollection<ActivityLog>('activityLogs', [orderBy('time', 'desc'), limit(20)]);
+  const { items: organizations, loading: orgsLoading } = useCollection<Organization>('organizations', orgsConstraints);
+  const { items: needs } = useCollection<Need>('needs', needsConstraints);
+  const { items: opportunities } = useCollection<Opportunity>('opportunities', oppsConstraints);
+  const { items: submissions } = useCollection<QuestSubmission>('questSubmissions', subsConstraints);
+  const { items: quests } = useCollection<Quest>('quests', questsConstraints);
+  const { items: outcomes } = useCollection<Outcome>('outcomes', outcomesConstraints);
+  const { items: revenue } = useCollection<RevenueEvent>('revenueEvents', revenueConstraints);
+  const { items: verifications } = useCollection<VerificationRecord>('verifications', verificationConstraints);
+  const { items: logs } = useCollection<ActivityLog>('activityLogs', logsConstraints);
 
   const metrics = useMemo<DashboardMetric[]>(() => {
     if (!profile) return [];

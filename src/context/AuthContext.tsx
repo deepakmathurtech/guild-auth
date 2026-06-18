@@ -23,16 +23,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribeAuth = subscribeToAuth(async (user) => {
       setFirebaseUser(user);
       unsubscribeProfile?.();
+      
       if (!user) {
         setProfile(null);
         setLoading(false);
         return;
       }
-      await ensureUserProfile(user);
-      unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
-        setProfile(snapshot.exists() ? (snapshot.data() as GuildUser) : null);
+      
+      try {
+        await ensureUserProfile(user);
+        unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
+          setProfile(snapshot.exists() ? (snapshot.data() as GuildUser) : null);
+          setLoading(false);
+        }, (err) => {
+          console.error('Profile snapshot error:', err);
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('Auth initialization error:', err);
         setLoading(false);
-      });
+      }
     });
     return () => {
       unsubscribeProfile?.();
