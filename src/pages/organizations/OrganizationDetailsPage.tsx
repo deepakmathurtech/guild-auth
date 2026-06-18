@@ -9,7 +9,7 @@ import {
   Phone, Mail, MapPin, User, History, 
   MessageSquare, Plus, ArrowLeftRight, Save,
   ChevronLeft, ExternalLink, Shield, Globe,
-  MoreVertical, Calendar, UserPlus
+  MoreVertical, Calendar, UserPlus, Star
 } from 'lucide-react';
 
 export function OrganizationDetailsPage() {
@@ -304,13 +304,12 @@ export function OrganizationDetailsPage() {
              <div className="mt-8 space-y-3">
                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-4 text-center">Relationship Maturity</p>
                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                 <div className="h-full bg-[var(--primary)] rounded-full" style={{ width: `${Math.min(org.trustLevel * 10, 100)}%` }} />
+                  <div className="h-full bg-[var(--primary)] rounded-full" style={{ width: `${Math.min(({ new: 25, verified: 50, trusted: 75, partner: 100 }[org.trustLevel] || 25), 100)}%` }} />
                </div>
              </div>
           </section>
-        </div>
+        </aside>
       </div>
     </div>
   );
 }
-

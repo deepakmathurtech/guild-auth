@@ -1,13 +1,13 @@
 ﻿import type { ReactNode } from 'react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  CheckCircle2, Circle, FileCheck2, IndianRupee, 
+  CheckCircle2, FileCheck2, IndianRupee, 
   MapPin, ShieldCheck, Sparkles, UsersRound,
-  ChevronRight, ChevronLeft, Flag, Target,
-  Info, Wallet, ClipboardCheck, History
+  ChevronRight, ChevronLeft, Target,
+  ClipboardCheck
 } from 'lucide-react';
-import { createLedgerRecord } from '../../lib/repository';
+import { createLedgerRecord, detectDuplicates } from '../../lib/repository';
 import { generateGuildQuestId } from '../../services/workflowService';
 import { useAuth } from '../../context/AuthContext';
 import type { Quest } from '../../types/guild';
@@ -37,12 +37,12 @@ function FieldLabel({ label, help, required, children }: { label: string; help?:
 function StepHeader({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
   return (
     <div className="mb-8 flex items-start gap-4 animate-in slide-in-from-left-4 duration-300">
-      <div className="w-12 h-12 rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shadow-inner border border-[var(--primary)]/20">
+      <div className="step-icon" aria-hidden="true">
         {icon}
       </div>
       <div>
-        <h3 className="text-2xl font-bold tracking-tight">{title}</h3>
-        <p className="mt-1 text-sm text-[var(--text-muted)] leading-relaxed">{description}</p>
+        <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+        <p className="mt-1 max-w-3xl text-sm text-[var(--text-secondary)] leading-relaxed">{description}</p>
       </div>
     </div>
   );
@@ -56,6 +56,7 @@ export function QuestRegistrationWizard() {
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const formTopRef = useRef<HTMLDivElement>(null);
   
   const [form, setForm] = useState<Partial<Quest>>({
     title: locationState.state?.title || '',
@@ -123,15 +124,11 @@ export function QuestRegistrationWizard() {
     return { score, missing };
   }, [form]);
 
-  function canContinue() {
-    if (step === 0) return Boolean(form.title?.trim() && form.description?.trim() && form.category?.trim());
-    if (step === 1) return Boolean(form.sourceType && form.sourceName?.trim());
-    if (step === 2) return Boolean(form.location?.city && form.location?.state && form.mode);
-    if (step === 3) return Boolean(form.requiredRank && form.membersRequired && form.difficulty);
-    if (step === 4) return !form.isPaid || Number(form.paymentAmount || 0) > 0;
-    if (step === 5) return Boolean(form.verificationMethod && form.verificationLevel);
-    if (step === 6) return Boolean(form.expectedOutcome?.trim());
-    return true;
+  function goToStep(nextStep: number) {
+    setStep(Math.max(0, Math.min(STEPS.length - 1, nextStep)));
+    requestAnimationFrame(() => {
+      formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   async function handleRegister() {
@@ -139,6 +136,13 @@ export function QuestRegistrationWizard() {
     setIsSubmitting(true);
     setError('');
     try {
+      // Stress Test: Duplicate Detection
+      const existing = await detectDuplicates('quests', 'title', form.title || '');
+      const isDuplicate = existing.some(q => q.organizationId === form.organizationId);
+      if (isDuplicate) {
+        throw new Error(`Duplicate Record: Quest "${form.title}" already exists for this organization.`);
+      }
+
       const newId = await generateGuildQuestId(
         profile.jurisdiction.cityName, 
         form.category || 'GEN',
@@ -168,24 +172,24 @@ export function QuestRegistrationWizard() {
   }
 
   return (
-    <div className="space-y-10 pb-20 animate-fade-up">
+    <div className="space-y-7 pb-8 animate-fade-up">
       {/* Header Panel */}
-      <div className="hero-panel border-none shadow-none bg-[var(--card-subtle)] !p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-        <div>
+      <div className="registration-hero p-6 md:p-8 lg:p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+        <div className="max-w-3xl">
           <p className="eyebrow">Deployment Command</p>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2">Quest Registration</h1>
-          <p className="text-[var(--text-secondary)] text-lg max-w-2xl leading-relaxed">
+          <h1 className="text-4xl font-bold tracking-tight mb-3">Quest Registration</h1>
+          <p className="text-[var(--text-secondary)] text-base md:text-lg max-w-2xl leading-relaxed">
             Configure a professional case file for a new guild mission. 
             Define parameters, logistics, and verification protocols.
           </p>
         </div>
         
-        <div className="p-8 rounded-[2.5rem] bg-[var(--bg)] border border-[var(--border)] text-center min-w-[200px] shadow-sm">
-           <div className="flex justify-between items-end mb-2">
+        <div className="readiness-card w-full p-6 text-center md:w-[260px]" role="status" aria-live="polite">
+           <div className="flex justify-between items-end mb-3">
              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Operational Readiness</span>
              <span className="text-2xl font-bold text-[var(--primary)]">{completeness.score}%</span>
            </div>
-           <div className="h-1.5 w-full bg-[var(--border)] rounded-full overflow-hidden mb-2">
+           <div className="h-2 w-full bg-[var(--border)] rounded-full overflow-hidden mb-3" role="progressbar" aria-valuenow={completeness.score} aria-valuemin={0} aria-valuemax={100} aria-label="Operational readiness">
              <div className="h-full bg-[var(--primary)] transition-all duration-500" style={{ width: `${completeness.score}%` }} />
            </div>
            <p className="text-[10px] font-medium text-[var(--text-muted)]">
@@ -194,43 +198,32 @@ export function QuestRegistrationWizard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-7 items-start">
         {/* Navigation Sidebar */}
-        <aside className="space-y-6">
+        <aside className="space-y-5 lg:sticky lg:top-4" aria-label="Quest registration steps">
            <p className="px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">Configuration Steps</p>
            <nav className="space-y-1">
              {STEPS.map((item, idx) => (
                <button
                  key={item}
-                 onClick={() => setStep(idx)}
-                 className={`
-                   w-full flex items-center gap-4 px-4 py-3 rounded-xl text-sm font-semibold transition-all
-                   ${step === idx 
-                     ? 'bg-[var(--card)] text-[var(--text)] ring-1 ring-[var(--primary)]/30 shadow-md' 
-                     : idx < step 
-                       ? 'text-emerald-500 hover:bg-emerald-500/5' 
-                       : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--card-subtle)]'}
-                 `}
+                 type="button"
+                 onClick={() => goToStep(idx)}
+                 aria-current={step === idx ? 'step' : undefined}
+                 data-complete={idx < step}
+                 className="wizard-step-button"
                >
-                 <span className={`
-                   w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold
-                   ${step === idx 
-                     ? 'bg-[var(--primary)] text-black' 
-                     : idx < step 
-                       ? 'bg-emerald-500/20 text-emerald-500' 
-                       : 'bg-[var(--card-subtle)] border border-[var(--border)]'}
-                 `}>
+                 <span className="wizard-step-marker" aria-hidden="true">
                    {idx < step ? <CheckCircle2 className="w-3.5 h-3.5" /> : idx + 1}
                  </span>
-                 {item}
+                 <span>{item}</span>
                </button>
              ))}
            </nav>
         </aside>
 
         {/* Form Area */}
-        <div className="panel shadow-[var(--shadow-lg)] !p-0 overflow-hidden flex flex-col min-h-[600px]">
-          <div className="flex-1 p-10">
+        <div ref={formTopRef} className="wizard-shell flex flex-col min-h-0">
+          <div className="flex-1 p-6 md:p-8 lg:p-10">
             {step === 0 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                 <StepHeader 
@@ -239,7 +232,7 @@ export function QuestRegistrationWizard() {
                   description="Establish the core identity of this quest. Use clear, objective-focused naming conventions." 
                 />
                 <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     <FieldLabel label="Deployment Title" required help="Professional, action-oriented title.">
                       <input value={form.title || ''} onChange={e => updateForm('title', e.target.value)} placeholder="e.g. Develop Market Expansion Strategy" />
                     </FieldLabel>
@@ -276,7 +269,7 @@ export function QuestRegistrationWizard() {
                   description="Identify the initiating entity and maintain administrative links to previous ledger entries." 
                 />
                 <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     <FieldLabel label="Origin Type" required>
                       <select value={form.sourceType || ''} onChange={e => updateForm('sourceType', e.target.value)}>
                         <option>Organization</option><option>Individual</option><option>Guild Internal</option><option>Partner Organization</option><option>Government</option>
@@ -292,11 +285,11 @@ export function QuestRegistrationWizard() {
                       <input type="email" value={form.sourceEmail || ''} onChange={e => updateForm('sourceEmail', e.target.value)} placeholder="liaison@entity.com" />
                     </FieldLabel>
                   </div>
-                  <div className="p-6 rounded-2xl bg-[var(--card-subtle)] border border-[var(--border)]">
+                  <div className="p-5 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)]">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-4 flex items-center gap-2">
                        <Target className="w-3.5 h-3.5" /> Established Federation Links
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono text-[var(--text-secondary)]">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono text-[var(--text-secondary)]">
                        <div className="p-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] truncate">ORG: {form.organizationId || 'NONE'}</div>
                        <div className="p-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] truncate">NEED: {form.needId || 'NONE'}</div>
                        <div className="p-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] truncate">OPP: {form.opportunityId || 'NONE'}</div>
@@ -315,14 +308,15 @@ export function QuestRegistrationWizard() {
                 />
                 <div className="space-y-8">
                   <FieldLabel label="Operational Mode" required>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="choice-grid">
                       {['Remote', 'Physical', 'Hybrid'].map(m => (
                         <button 
                           key={m}
                           type="button"
                           onClick={() => updateForm('mode', m)}
+                          aria-pressed={form.mode === m}
                           className={`
-                            py-3 px-4 rounded-xl text-sm font-bold border transition-all
+                            choice-card
                             ${form.mode === m 
                               ? 'bg-[var(--primary)] text-black border-[var(--primary)] shadow-md' 
                               : 'bg-[var(--card-subtle)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--text-secondary)]'}
@@ -333,7 +327,7 @@ export function QuestRegistrationWizard() {
                       ))}
                     </div>
                   </FieldLabel>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     <FieldLabel label="Primary City" required>
                       <input value={form.location?.city || ''} onChange={e => updateNested('location', 'city', e.target.value)} placeholder="Ludhiana" />
                     </FieldLabel>
@@ -353,7 +347,7 @@ export function QuestRegistrationWizard() {
                   description="Define the human capital required for successful mission execution." 
                 />
                 <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     <FieldLabel label="Minimum Rank" required>
                       <select value={form.requiredRank || 'Applicant'} onChange={e => updateForm('requiredRank', e.target.value)}>
                         <option>Applicant</option><option>F</option><option>E</option><option>D</option><option>C</option><option>B</option><option>A</option><option>S</option>
@@ -377,7 +371,7 @@ export function QuestRegistrationWizard() {
                   <FieldLabel label="Required Specialized Skills" help="Comma separated list of mission-critical capabilities.">
                     <input value={(form.requiredSkills || []).join(', ')} onChange={e => updateSkills(e.target.value)} placeholder="React, Python, Negotiation, etc." />
                   </FieldLabel>
-                  <label className="flex items-center gap-4 p-6 rounded-2xl bg-[var(--card-subtle)] border border-[var(--border)] cursor-pointer group">
+                  <label className="flex items-center gap-4 p-5 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] cursor-pointer group">
                     <input type="checkbox" className="w-5 h-5 rounded-md border-[var(--border)] text-[var(--primary)] focus:ring-[var(--primary)]" checked={Boolean(form.isMandatory)} onChange={e => updateForm('isMandatory', e.target.checked)} />
                     <div>
                        <p className="text-sm font-bold group-hover:text-[var(--text)] transition-colors">Mandatory Guild Duty</p>
@@ -396,7 +390,7 @@ export function QuestRegistrationWizard() {
                   description="Transparency in value and compensation is critical for Federation trust." 
                 />
                 <div className="space-y-8">
-                  <label className="flex items-center gap-4 p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 cursor-pointer group">
+                  <label className="flex items-center gap-4 p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 cursor-pointer group">
                     <input type="checkbox" className="w-5 h-5 rounded-md border-emerald-500/30 text-emerald-500 focus:ring-emerald-500" checked={Boolean(form.isPaid)} onChange={e => updateForm('isPaid', e.target.checked)} />
                     <div>
                        <p className="text-sm font-bold text-emerald-600 group-hover:text-emerald-700 transition-colors">Paid Deployment</p>
@@ -404,7 +398,7 @@ export function QuestRegistrationWizard() {
                     </div>
                   </label>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     <FieldLabel label="Gross Mission Value (INR)" required help="Total value generated by this quest.">
                       <input type="number" min={0} value={form.estimatedValue || 0} onChange={e => updateForm('estimatedValue', Number(e.target.value))} />
                     </FieldLabel>
@@ -434,7 +428,7 @@ export function QuestRegistrationWizard() {
                   description="Define what constitutes success and how the ledger will verify it." 
                 />
                 <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     <FieldLabel label="Verification Protocol" required>
                       <select value={form.verificationMethod || 'manualReview'} onChange={e => updateForm('verificationMethod', e.target.value)}>
                         <option value="manualReview">Manual Review - Operator Lead</option>
@@ -450,22 +444,22 @@ export function QuestRegistrationWizard() {
                     </FieldLabel>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <label className="flex items-center gap-3 p-4 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] cursor-pointer">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <label className="flex items-center gap-3 p-4 rounded-lg bg-[var(--card-subtle)] border border-[var(--border)] cursor-pointer">
                       <input type="checkbox" className="w-4 h-4 rounded text-[var(--primary)] focus:ring-[var(--primary)]" checked={Boolean(form.knowledgeRequired)} onChange={e => updateForm('knowledgeRequired', e.target.checked)} />
                       <span className="text-xs font-bold">Knowledge Capture</span>
                     </label>
-                    <label className="flex items-center gap-3 p-4 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] cursor-pointer">
+                    <label className="flex items-center gap-3 p-4 rounded-lg bg-[var(--card-subtle)] border border-[var(--border)] cursor-pointer">
                       <input type="checkbox" className="w-4 h-4 rounded text-[var(--primary)] focus:ring-[var(--primary)]" checked={Boolean(form.portfolioEligible)} onChange={e => updateForm('portfolioEligible', e.target.checked)} />
                       <span className="text-xs font-bold">Portfolio Worthy</span>
                     </label>
-                    <label className="flex items-center gap-3 p-4 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] cursor-pointer">
+                    <label className="flex items-center gap-3 p-4 rounded-lg bg-[var(--card-subtle)] border border-[var(--border)] cursor-pointer">
                       <input type="checkbox" className="w-4 h-4 rounded text-[var(--primary)] focus:ring-[var(--primary)]" checked={Boolean(form.certificateEligible)} onChange={e => updateForm('certificateEligible', e.target.checked)} />
                       <span className="text-xs font-bold">Certification Eligible</span>
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                     <FieldLabel label="XP Reward Points" help="Reputation boost for successful completion.">
                       <input type="number" min={0} value={form.reputationPoints || 0} onChange={e => updateForm('reputationPoints', Number(e.target.value))} />
                     </FieldLabel>
@@ -545,31 +539,39 @@ export function QuestRegistrationWizard() {
             )}
           </div>
 
-          <div className="bg-[var(--card-subtle)] border-t border-[var(--border)] p-8 flex flex-col-reverse md:flex-row justify-between items-center gap-6">
+          <div className="sticky-actions flex flex-col-reverse md:flex-row justify-between items-center gap-4">
             <button 
               className="ghost !py-3 !px-8 text-xs font-bold uppercase tracking-widest" 
+              type="button"
               disabled={step === 0 || isSubmitting} 
-              onClick={() => setStep(step - 1)}
+              onClick={() => goToStep(step - 1)}
             >
-              <ChevronLeft className="w-4 h-4 mr-1" /> Protocol Step {step}
+              <ChevronLeft className="w-4 h-4 mr-1" aria-hidden="true" /> {step === 0 ? 'Identity Step' : `Back to ${STEPS[step - 1]}`}
             </button>
             
             {step < STEPS.length - 1 ? (
               <button 
-                className="primary !py-4 !px-12 rounded-[1.5rem] shadow-lg shadow-[var(--primary)]/20" 
-                disabled={!canContinue()} 
-                onClick={() => setStep(step + 1)}
+                className="primary !py-3.5 !px-8 md:!px-10 !rounded-xl shadow-lg shadow-[var(--primary)]/20" 
+                type="button"
+                disabled={isSubmitting} 
+                onClick={() => goToStep(step + 1)}
               >
-                Proceed to {STEPS[step + 1]} <ChevronRight className="w-4 h-4 ml-1" />
+                Proceed to {STEPS[step + 1]} <ChevronRight className="w-4 h-4 ml-1" aria-hidden="true" />
               </button>
             ) : (
               <button 
-                className="primary !py-4 !px-12 rounded-[1.5rem] shadow-lg shadow-[var(--primary)]/20 !bg-emerald-500 hover:!bg-emerald-600 !text-white !border-none" 
+                className="primary !py-3.5 !px-8 md:!px-10 !rounded-xl shadow-lg shadow-[var(--primary)]/20 !bg-emerald-500 hover:!bg-emerald-600 !text-white !border-none" 
+                type="button"
                 disabled={isSubmitting || completeness.score < 70} 
                 onClick={handleRegister}
               >
-                {isSubmitting ? 'Synchronizing Ledger...' : 'Commit to Federation Ledger'} <FileCheck2 className="w-4 h-4 ml-2" />
+                {isSubmitting ? 'Synchronizing Ledger...' : 'Commit to Federation Ledger'} <FileCheck2 className="w-4 h-4 ml-2" aria-hidden="true" />
               </button>
+            )}
+            {step < STEPS.length - 1 && completeness.missing.length > 0 && (
+              <p className="w-full text-center text-[11px] font-medium text-[var(--text-muted)] md:w-auto">
+                You can continue now. Missing details are summarized on the Registry step.
+              </p>
             )}
           </div>
         </div>

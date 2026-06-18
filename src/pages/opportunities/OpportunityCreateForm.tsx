@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { createLedgerRecord, getRecord } from '../../lib/repository';
+import { createLedgerRecord, getRecord, detectDuplicates } from '../../lib/repository';
 import { convertNeedToOpportunity } from '../../services/workflowService';
 import type { Opportunity, Need } from '../../types/guild';
 
@@ -29,6 +29,13 @@ export function OpportunityCreateForm({ initialData = {}, onSuccess, onCancel }:
     if (!profile) return;
     setStatus('Saving...');
     try {
+      // Stress Test: Duplicate Detection
+      const existing = await detectDuplicates('opportunities', 'title', form.title);
+      const isDuplicate = existing.some(o => o.organizationId === form.organizationId);
+      if (isDuplicate) {
+        throw new Error(`Duplicate Record: This organization already has an opportunity titled "${form.title}".`);
+      }
+
       const oppData = {
         ...form,
         skillsRequired: form.skillsRequired ? form.skillsRequired.split(',').map((s: string) => s.trim()).filter(Boolean) : [],

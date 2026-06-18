@@ -122,7 +122,7 @@ export function NeedListPage() {
                       </div>
                       <div>
                         <p className="font-bold text-sm text-[var(--text)]">{need.title}</p>
-                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold">{need.category || 'General Need'}</p>
+                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-bold">{need.city || 'General Need'}</p>
                       </div>
                     </div>
                   </td>

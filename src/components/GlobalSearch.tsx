@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, X, Command as CommandIcon, ArrowRight, Building2, Sparkles, ClipboardCheck, User } from 'lucide-react';
+import { Search, X, Command as CommandIcon, ArrowRight, Building2, Sparkles, ClipboardCheck, User, Flag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';

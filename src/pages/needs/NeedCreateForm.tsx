@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { createLedgerRecord, listRecords } from '../../lib/repository';
+import { createLedgerRecord, listRecords, detectDuplicates } from '../../lib/repository';
 import type { Need, Organization } from '../../types/guild';
 import { where } from 'firebase/firestore';
 
@@ -39,6 +39,13 @@ export function NeedCreateForm({ initialOrgId = '', initialOrgName = '', onSucce
     if (!profile) return;
     setStatus('Saving...');
     try {
+      // Stress Test: Duplicate Detection
+      const existing = await detectDuplicates('needs', 'title', form.title);
+      const isDuplicate = existing.some(n => n.organizationId === form.organizationId);
+      if (isDuplicate) {
+        throw new Error(`Duplicate Record: This organization already has a need titled "${form.title}".`);
+      }
+
       const orgName = organizations.find(o => o.id === form.organizationId)?.name || form.organizationName;
       await createLedgerRecord('needs', {
         ...form,

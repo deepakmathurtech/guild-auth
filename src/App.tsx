@@ -18,46 +18,116 @@ import { QuestDetailsPage } from './pages/quests/QuestDetailsPage';
 import { SubmissionQueuePage } from './pages/submissions/SubmissionQueuePage';
 import { SubmissionReviewPage } from './pages/submissions/SubmissionReviewPage';
 import { OutcomePage } from './pages/outcomes/OutcomePage';
+import type { GuildRole } from './types/guild';
 
 import './styles.css';
 
 const savedTheme = localStorage.getItem('guild-theme');
 document.documentElement.dataset.theme = savedTheme || 'light';
 
+const allActiveRoles: GuildRole[] = [
+  'applicant',
+  'member',
+  'contributor',
+  'receptionistCandidate',
+  'receptionist',
+  'cityGuildMaster',
+  'stateGuildMaster',
+  'centralGuildMaster',
+  'nationalGuildMaster',
+  'guildFounder',
+  'founder'
+];
+
+const memberRoles: GuildRole[] = [
+  'member',
+  'contributor',
+  'receptionistCandidate',
+  'receptionist',
+  'cityGuildMaster',
+  'stateGuildMaster',
+  'centralGuildMaster',
+  'nationalGuildMaster',
+  'guildFounder',
+  'founder'
+];
+
+const receptionistRoles: GuildRole[] = [
+  'receptionist',
+  'cityGuildMaster',
+  'stateGuildMaster',
+  'centralGuildMaster',
+  'nationalGuildMaster',
+  'guildFounder',
+  'founder'
+];
+
+const cityLeadershipRoles: GuildRole[] = [
+  'cityGuildMaster',
+  'stateGuildMaster',
+  'centralGuildMaster',
+  'nationalGuildMaster',
+  'guildFounder',
+  'founder'
+];
+
+const centralAdminRoles: GuildRole[] = [
+  'centralGuildMaster',
+  'nationalGuildMaster',
+  'guildFounder',
+  'founder'
+];
+
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {
-    element: <ProtectedRoute />,
+    element: <ProtectedRoute roles={allActiveRoles} />,
     children: [
       {
         element: <AppShell />,
         children: [
           { index: true, element: <DashboardPage /> },
           
-          { path: 'organizations', element: <OrganizationListPage /> },
-          { path: 'organizations/:id', element: <OrganizationDetailsPage /> },
+          {
+            element: <ProtectedRoute roles={receptionistRoles} />,
+            children: [
+              { path: 'organizations', element: <OrganizationListPage /> },
+              { path: 'organizations/:id', element: <OrganizationDetailsPage /> },
+              { path: 'needs', element: <NeedListPage /> },
+              { path: 'needs/:id', element: <NeedDetailsPage /> },
+              { path: 'quests/register', element: <QuestRegistrationWizard /> },
+              { path: 'submissions', element: <SubmissionQueuePage /> },
+              { path: 'submissions/:id', element: <SubmissionReviewPage /> },
+              { path: 'outcomes', element: <OutcomePage /> },
+              { path: 'verification', element: <WorkbenchPage kind="verification" /> },
+              { path: 'revenue', element: <WorkbenchPage kind="revenue" /> }
+            ]
+          },
           
-          { path: 'needs', element: <NeedListPage /> },
-          { path: 'needs/:id', element: <NeedDetailsPage /> },
-          
-          { path: 'opportunities', element: <OpportunityListPage /> },
-          { path: 'opportunities/:id', element: <OpportunityDetailsPage /> },
-          
-          { path: 'quests', element: <QuestListPage /> },
-          { path: 'quests/register', element: <QuestRegistrationWizard /> },
-          { path: 'quests/:id', element: <QuestDetailsPage /> },
-          
-          { path: 'submissions', element: <SubmissionQueuePage /> },
-          { path: 'submissions/:id', element: <SubmissionReviewPage /> },
-          
-          { path: 'outcomes', element: <OutcomePage /> },
-          
-          // Fallback legacy workbenches for features not fully migrated yet
-          { path: 'verification', element: <WorkbenchPage kind="verification" /> },
-          { path: 'revenue', element: <WorkbenchPage kind="revenue" /> },
-          { path: 'knowledge', element: <WorkbenchPage kind="knowledge" /> },
-          { path: 'ledger', element: <WorkbenchPage kind="ledger" /> },
-          { path: 'admin', element: <WorkbenchPage kind="admin" /> }
+          {
+            element: <ProtectedRoute roles={memberRoles} />,
+            children: [
+              { path: 'opportunities', element: <OpportunityListPage /> },
+              { path: 'opportunities/:id', element: <OpportunityDetailsPage /> },
+              { path: 'quests', element: <QuestListPage /> },
+              { path: 'quests/:id', element: <QuestDetailsPage /> },
+              { path: 'knowledge', element: <WorkbenchPage kind="knowledge" /> }
+            ]
+          },
+
+          {
+            element: <ProtectedRoute roles={cityLeadershipRoles} />,
+            children: [
+              { path: 'ledger', element: <WorkbenchPage kind="ledger" /> }
+            ]
+          },
+
+          {
+            element: <ProtectedRoute roles={centralAdminRoles} />,
+            children: [
+              { path: 'admin', element: <WorkbenchPage kind="admin" /> }
+            ]
+          }
         ]
       }
     ]

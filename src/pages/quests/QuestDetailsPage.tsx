@@ -6,12 +6,13 @@ import { useAuth } from '../../context/AuthContext';
 import type { Quest, QuestSubmission, GuildUser, Outcome, KnowledgeRecord, RevenueEvent, Need, Opportunity } from '../../types/guild';
 import { where } from 'firebase/firestore';
 import { MemberSearch } from '../../components/MemberSearch';
+import { hasRole } from '../../lib/rbac';
 import { 
   ChevronDown, ChevronRight, FileText, CheckCircle, 
   IndianRupee, ShieldCheck, History, BookOpen, 
   Building, MapPin, Users, ChevronLeft,
   Sparkles, Info, Target, Wallet, AlertCircle,
-  ExternalLink, BarChart3, Clock, UserPlus
+  ExternalLink, BarChart3, Clock, UserPlus, Flag
 } from 'lucide-react';
 import { assignMemberToQuest } from '../../services/workflowService';
 
@@ -64,6 +65,13 @@ export function QuestDetailsPage() {
   const [revenue, setRevenue] = useState<RevenueEvent[]>([]);
   const [linkedNeed, setLinkedNeed] = useState<Need | null>(null);
   const [linkedOpp, setLinkedOpp] = useState<Opportunity | null>(null);
+  const canManageQuest = hasRole(profile?.role, [
+    'receptionist',
+    'cityGuildMaster',
+    'stateGuildMaster',
+    'centralGuildMaster',
+    'nationalGuildMaster'
+  ]);
 
   useEffect(() => {
     if (!id) return;
@@ -83,13 +91,13 @@ export function QuestDetailsPage() {
   }, [id]);
 
   async function handleUpdateField(field: keyof Quest, value: any) {
-    if (!quest || !profile) return;
+    if (!quest || !profile || !canManageQuest) return;
     await updateLedgerRecord('quests', quest.id, { [field]: value }, profile, `Updated Quest ${field}`);
     setQuest({ ...quest, [field]: value });
   }
 
   async function handleAssignMember(user: GuildUser) {
-    if (!quest || !profile) return;
+    if (!quest || !profile || !user?.uid || !canManageQuest) return;
     try {
       await assignMemberToQuest(quest.id, user.uid, profile);
       const updated = await getRecord('quests', quest.id);
@@ -111,7 +119,7 @@ export function QuestDetailsPage() {
   }
 
   async function handleAcceptApplicant(uid: string) {
-    if (!quest || !profile) return;
+    if (!quest || !profile || !canManageQuest) return;
     try {
       await assignMemberToQuest(quest.id, uid, profile);
       const newApplicants = (quest.applicants || []).filter(a => a !== uid);
@@ -235,29 +243,30 @@ export function QuestDetailsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Deployment Title</label>
-                  <input className="text-sm font-medium" value={quest.title} onChange={e => setQuest({...quest, title: e.target.value})} onBlur={e => handleUpdateField('title', e.target.value)} />
+                  <input className="text-sm font-medium" value={quest.title} disabled={!canManageQuest} onChange={e => setQuest({...quest, title: e.target.value})} onBlur={e => handleUpdateField('title', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Classification</label>
-                  <select className="text-sm font-medium" value={quest.category} onChange={e => setQuest({...quest, category: e.target.value})} onBlur={e => handleUpdateField('category', e.target.value)}>
-                    <option>Tech</option><option>Creative</option><option>Logistics</option><option>Security</option>
+                  <select className="text-sm font-medium" value={quest.classification || ''} disabled={!canManageQuest} onChange={e => handleUpdateField('classification', e.target.value as any)}>
+                    <option>Internal Guild</option><option>External Client</option><option>Community Service</option>
+                    <option>Revenue Generating</option><option>Training</option><option>Partnership</option><option>Research</option><option>Emergency</option>
                   </select>
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Mission Objective</label>
-                <textarea className="text-sm leading-relaxed" rows={5} value={quest.description} onChange={e => setQuest({...quest, description: e.target.value})} onBlur={e => handleUpdateField('description', e.target.value)} />
+                <textarea className="text-sm leading-relaxed" rows={5} value={quest.description} disabled={!canManageQuest} onChange={e => setQuest({...quest, description: e.target.value})} onBlur={e => handleUpdateField('description', e.target.value)} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Operational Mode</label>
-                   <select className="text-sm font-medium" value={quest.mode || ''} onChange={e => handleUpdateField('mode', e.target.value)}>
+                   <select className="text-sm font-medium" value={quest.mode || ''} disabled={!canManageQuest} onChange={e => handleUpdateField('mode', e.target.value as any)}>
                      <option value="">Select...</option><option>Remote</option><option>Physical</option><option>Hybrid</option>
                    </select>
                 </div>
                 <div className="space-y-2">
                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Rank Requirement</label>
-                   <select className="text-sm font-medium" value={quest.requiredRank || 'Applicant'} onChange={e => handleUpdateField('requiredRank', e.target.value)}>
+                   <select className="text-sm font-medium" value={quest.requiredRank || 'Applicant'} disabled={!canManageQuest} onChange={e => handleUpdateField('requiredRank', e.target.value as any)}>
                      <option>Applicant</option><option>F</option><option>E</option><option>D</option><option>C</option><option>B</option><option>A</option><option>S</option>
                    </select>
                 </div>
@@ -270,7 +279,7 @@ export function QuestDetailsPage() {
                <div className="space-y-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Partner Entity</label>
-                    <input className="text-sm font-medium" value={quest.sourceName || ''} onChange={e => setQuest({...quest, sourceName: e.target.value})} onBlur={e => handleUpdateField('sourceName', e.target.value)} />
+                    <input className="text-sm font-medium" value={quest.sourceName || ''} disabled={!canManageQuest} onChange={e => setQuest({...quest, sourceName: e.target.value})} onBlur={e => handleUpdateField('sourceName', e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Deployment Zone</label>
@@ -308,13 +317,13 @@ export function QuestDetailsPage() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Verification Depth</label>
-                    <select className="text-sm font-medium" value={quest.verificationLevel || 'Receptionist Verified'} onChange={e => handleUpdateField('verificationLevel', e.target.value)}>
+                    <select className="text-sm font-medium" value={quest.verificationLevel || 'Receptionist Verified'} disabled={!canManageQuest} onChange={e => handleUpdateField('verificationLevel', e.target.value as any)}>
                       <option>Self Verified</option><option>Receptionist Verified</option><option>Manager Verified</option><option>External Verified</option>
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Review Protocol</label>
-                    <select className="text-sm font-medium" value={quest.verificationMethod || 'manualReview'} onChange={e => handleUpdateField('verificationMethod', e.target.value)}>
+                    <select className="text-sm font-medium" value={quest.verificationMethod || 'manualReview'} disabled={!canManageQuest} onChange={e => handleUpdateField('verificationMethod', e.target.value as any)}>
                       <option value="reportReview">Report Review</option><option value="documentUpload">Document Upload</option><option value="manualReview">Manual Review</option>
                     </select>
                   </div>
@@ -323,7 +332,7 @@ export function QuestDetailsPage() {
                <div className="space-y-4">
                  <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">Member Submissions</h4>
                  {submissions.map(sub => (
-                   <div key={sub.id} className="p-4 rounded-2xl bg-[var(--bg)] border border-[var(--border)] hover:border-purple-500/40 transition-all group/sub cursor-pointer" onClick={() => navigate(`/submissions/${sub.id}`)}>
+                   <div key={sub.id} className={`p-4 rounded-2xl bg-[var(--bg)] border border-[var(--border)] transition-all group/sub ${canManageQuest ? 'cursor-pointer hover:border-purple-500/40' : ''}`} onClick={() => canManageQuest && navigate(`/submissions/${sub.id}`)}>
                       <div className="flex justify-between items-start mb-3">
                          <div className="flex items-center gap-3">
                            <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500 text-[10px] font-bold">
@@ -337,9 +346,11 @@ export function QuestDetailsPage() {
                          <StatusBadge status={sub.status} />
                       </div>
                       <p className="text-xs text-[var(--text-muted)] italic line-clamp-1 mb-2">&quot;{sub.report}&quot;</p>
-                      <button className="w-full py-1.5 text-[10px] font-bold text-purple-500 uppercase tracking-widest opacity-0 group-hover/sub:opacity-100 transition-opacity">
-                         Enter Review Chamber &rarr;
-                      </button>
+                      {canManageQuest && (
+                        <button className="w-full py-1.5 text-[10px] font-bold text-purple-500 uppercase tracking-widest opacity-0 group-hover/sub:opacity-100 transition-opacity">
+                           Enter Review Chamber &rarr;
+                        </button>
+                      )}
                    </div>
                  ))}
                  {submissions.length === 0 && (
@@ -381,7 +392,7 @@ export function QuestDetailsPage() {
                 <StatusBadge status="Active Unit" className="!bg-sky-500/20 !text-sky-500 !border-none !text-[9px]" />
              </div>
 
-             {profile?.role === 'receptionist' && (
+             {canManageQuest && (
                <div className="mb-6 space-y-4">
                   <MemberSearch onSelect={handleAssignMember} />
                   
@@ -440,14 +451,14 @@ export function QuestDetailsPage() {
                     {Object.entries(quest.timeline).slice(0, 3).map(([event, time]) => (
                       <div key={event} className="flex justify-between items-center text-[10px]">
                         <span className="text-[var(--text-muted)] capitalize">{event.replace(/([A-Z])/g, ' $1').trim()}</span>
-                        <span className="font-mono text-emerald-500">{new Date(time).toLocaleDateString()}</span>
+                        <span className="font-mono text-emerald-500">{time ? new Date(time as string).toLocaleDateString() : 'N/A'}</span>
                       </div>
                     ))}
                   </div>
                 )}
              </div>
           </section>
-        </div>
+        </aside>
       </div>
     </div>
   );

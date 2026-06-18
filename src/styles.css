@@ -3,19 +3,19 @@
 @layer base {
   :root,
   [data-theme='dark'] {
-    --bg: #0a0a0f;
-    --bg-alt: #121218;
+    --bg: #08080d;
+    --bg-alt: #101018;
     --nav-bg: rgba(10, 10, 15, 0.85);
-    --card: #14141d;
-    --card-glass: rgba(20, 20, 29, 0.7);
-    --card-subtle: #1a1a24;
-    --text: #f0ead8;
-    --text-secondary: rgba(240, 234, 216, 0.65);
-    --text-muted: rgba(240, 234, 216, 0.45);
+    --card: #15151e;
+    --card-glass: rgba(20, 20, 29, 0.78);
+    --card-subtle: #1b1b26;
+    --text: #fff8e8;
+    --text-secondary: rgba(255, 248, 232, 0.76);
+    --text-muted: rgba(255, 248, 232, 0.58);
     --muted: rgba(240, 234, 216, 0.25);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-light: rgba(255, 255, 255, 0.12);
-    --primary: #c8a464;
+    --border: rgba(255, 255, 255, 0.1);
+    --border-light: rgba(255, 255, 255, 0.18);
+    --primary: #d4af67;
     --primary-dark: #a8853e;
     --accent: #c8a464;
     --accent-light: #e8c888;
@@ -23,7 +23,7 @@
     --warning: #f59e0b;
     --error: #ef4444;
     --info: #3b82f6;
-    --input-bg: rgba(255, 255, 255, 0.04);
+    --input-bg: rgba(255, 255, 255, 0.055);
     --glow-gold: rgba(200, 164, 100, 0.12);
     --glow-purple: rgba(120, 80, 200, 0.08);
     
@@ -34,32 +34,34 @@
     --radius-2xl: 2rem;
     
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow: 0 8px 32px -8px rgb(0 0 0 / 0.5);
-    --shadow-lg: 0 32px 64px -16px rgb(0 0 0 / 0.6);
+    --shadow: 0 18px 42px -28px rgb(0 0 0 / 0.78);
+    --shadow-lg: 0 28px 80px -40px rgb(0 0 0 / 0.85);
   }
 
   [data-theme='light'] {
-    --bg: #f8f9fa;
-    --bg-alt: #ffffff;
-    --nav-bg: rgba(248, 249, 250, 0.85);
-    --card: #ffffff;
-    --card-glass: rgba(255, 255, 255, 0.7);
-    --card-subtle: #f1f3f5;
-    --text: #1a1a1a;
-    --text-secondary: #4a4a4a;
-    --text-muted: #6c757d;
-    --muted: #adb5bd;
-    --border: #e9ecef;
-    --border-light: #f1f3f5;
-    --primary: #9a6a12;
-    --primary-dark: #704905;
-    --accent: #d9a441;
-    --input-bg: #f8f9fa;
-    --glow-gold: rgba(154, 106, 18, 0.05);
-    --glow-purple: rgba(120, 80, 200, 0.03);
+    --bg: #f4f1ea;
+    --bg-alt: #fbf8f0;
+    --nav-bg: rgba(251, 248, 240, 0.88);
+    --card: #fffdf8;
+    --card-glass: rgba(255, 253, 248, 0.78);
+    --card-subtle: #eee7d9;
+    --text: #191610;
+    --text-secondary: #4e4536;
+    --text-muted: #766b58;
+    --muted: #b6ab96;
+    --border: rgba(87, 67, 34, 0.14);
+    --border-light: rgba(122, 90, 38, 0.24);
+    --primary: #946514;
+    --primary-dark: #6f4708;
+    --accent: #c6943f;
+    --accent-light: #f0d59a;
+    --input-bg: #fbf7ee;
+    --glow-gold: rgba(148, 101, 20, 0.1);
+    --glow-purple: rgba(54, 67, 103, 0.05);
 
-    --shadow: 0 8px 32px -8px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 32px 64px -16px rgb(0 0 0 / 0.15);
+    --shadow-sm: 0 1px 2px 0 rgb(61 43 16 / 0.06);
+    --shadow: 0 20px 45px -34px rgb(79 54 16 / 0.36);
+    --shadow-lg: 0 34px 90px -48px rgb(79 54 16 / 0.42);
   }
 
   html {
@@ -67,7 +69,9 @@
   }
 
   body {
-    background: var(--bg);
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--primary) 6%, transparent), transparent 32rem),
+      linear-gradient(180deg, var(--bg-alt), var(--bg));
     color: var(--text);
     @apply transition-colors duration-200 antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -79,11 +83,33 @@
   }
 
   button, a, input, textarea, select {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)];
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)];
   }
   
   input, textarea, select {
-    @apply w-full border border-[var(--border)] rounded-xl px-4 py-3 bg-[var(--input-bg)] text-[var(--text)] shadow-sm focus:border-[var(--primary)] transition-all;
+    @apply w-full border border-[var(--border)] rounded-lg px-4 py-3 bg-[var(--input-bg)] text-[var(--text)] shadow-sm focus:border-[var(--primary)] transition-all;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: color-mix(in srgb, var(--text-muted) 78%, transparent);
+  }
+
+  select {
+    color-scheme: dark;
+  }
+
+  [data-theme='light'] select {
+    color-scheme: light;
+  }
+
+  select option {
+    background-color: var(--card);
+    color: var(--text);
+  }
+
+  select option:checked {
+    background-color: var(--primary);
+    color: #000;
   }
   
   textarea {
@@ -109,7 +135,7 @@
   }
   
   .sidebar {
-    @apply sticky top-0 h-screen p-6 border-r border-[var(--border)] bg-[var(--bg)] z-30 transition-all;
+    @apply sticky top-0 h-screen p-6 border-r border-[var(--border)] bg-[var(--nav-bg)] z-30 transition-all backdrop-blur-xl;
   }
 
   .main {
@@ -137,7 +163,7 @@
   }
   
   .sidebar a {
-    @apply flex gap-3 items-center px-4 py-2.5 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--card-subtle)] hover:text-[var(--text)] transition-all duration-200 font-medium text-sm;
+    @apply flex gap-3 items-center px-4 py-2.5 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--card-subtle)] hover:text-[var(--text)] transition-all duration-200 font-medium text-sm;
   }
   
   .sidebar a.active {
@@ -213,6 +239,89 @@
 
   .field-help {
     @apply text-xs font-normal leading-relaxed text-[var(--text-muted)];
+  }
+
+  .registration-hero {
+    background:
+      linear-gradient(135deg, rgba(212, 175, 103, 0.08), transparent 42%),
+      linear-gradient(180deg, var(--card-subtle), #14141d);
+    @apply rounded-2xl border border-[var(--border-light)] shadow-[var(--shadow-lg)];
+  }
+
+  [data-theme='light'] .registration-hero {
+    background:
+      linear-gradient(135deg, rgba(148, 101, 20, 0.14), transparent 48%),
+      linear-gradient(180deg, #fffdf8, #eee7d9);
+  }
+
+  .readiness-card {
+    @apply rounded-2xl border border-[var(--border-light)] bg-black/35 shadow-inner;
+  }
+
+  [data-theme='light'] .readiness-card {
+    @apply bg-white/70;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8), 0 16px 40px -34px rgb(79 54 16 / 0.45);
+  }
+
+  .wizard-shell {
+    @apply rounded-2xl border border-[var(--border-light)] bg-[var(--card)] shadow-[var(--shadow-lg)] overflow-hidden;
+  }
+
+  .wizard-step-button {
+    @apply w-full flex items-center gap-4 rounded-lg px-4 py-3 text-left text-sm font-semibold transition-all;
+  }
+
+  .wizard-step-button[aria-current='step'] {
+    @apply bg-[var(--card-subtle)] text-[var(--text)] ring-1 ring-[var(--primary)]/45 shadow-sm;
+  }
+
+  .wizard-step-button:not([aria-current='step']) {
+    @apply text-[var(--text-muted)] hover:bg-[var(--card-subtle)]/70 hover:text-[var(--text-secondary)];
+  }
+
+  .wizard-step-marker {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] text-[11px] font-black;
+  }
+
+  .wizard-step-button[aria-current='step'] .wizard-step-marker {
+    @apply border-[var(--primary)] bg-[var(--primary)] text-black;
+  }
+
+  .wizard-step-button[data-complete='true'] .wizard-step-marker {
+    @apply border-emerald-500/30 bg-emerald-500/15 text-emerald-400;
+  }
+
+  .wizard-step-button[data-complete='true']:not([aria-current='step']) {
+    @apply text-emerald-400;
+  }
+
+  .step-icon {
+    @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)] shadow-inner;
+  }
+
+  .choice-grid {
+    @apply grid grid-cols-1 gap-3 sm:grid-cols-3;
+  }
+
+  .choice-card {
+    @apply rounded-lg border px-4 py-3 text-sm font-bold transition-all;
+  }
+
+  .sticky-actions {
+    @apply sticky bottom-0 z-20 border-t border-[var(--border)] bg-[var(--card)]/96 p-4 backdrop-blur-xl md:p-5;
+  }
+
+  .icon-button {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-lg border border-transparent bg-[var(--card-subtle)] text-[var(--text-secondary)] transition-all hover:border-[var(--border-light)] hover:text-[var(--text)];
+  }
+
+  .role-chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-[var(--primary)]/30 bg-[var(--primary)]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--primary)];
+  }
+
+  .sr-only {
+    @apply absolute h-px w-px overflow-hidden whitespace-nowrap border-0 p-0;
+    clip: rect(0, 0, 0, 0);
   }
 
   .required::after {

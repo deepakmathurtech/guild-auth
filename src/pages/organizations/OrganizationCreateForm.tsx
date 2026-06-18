@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { createLedgerRecord } from '../../lib/repository';
+import { createLedgerRecord, detectDuplicates } from '../../lib/repository';
 import type { Organization } from '../../types/guild';
 import { BriefcaseBusiness, User, Phone, Mail, MapPin, FileText, ChevronRight, X, Save } from 'lucide-react';
 
@@ -28,6 +28,12 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
     if (!profile) return;
     setStatus('Synchronizing Ledger...');
     try {
+      // Stress Test: Duplicate Detection
+      const existing = await detectDuplicates('organizations', 'name', form.name);
+      if (existing.length > 0) {
+        throw new Error(`CRITICAL: Organization "${form.name}" already exists in the Federation ledger.`);
+      }
+
       await createLedgerRecord('organizations', {
         ...form,
         needs: [],
@@ -155,4 +161,3 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
     </div>
   );
 }
-

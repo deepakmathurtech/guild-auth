@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getRecord, updateLedgerRecord, subscribeRecords } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
 import type { Opportunity, Quest, GuildUser } from '../../types/guild';
+import { hasRole } from '../../lib/rbac';
 import { where } from 'firebase/firestore';
 import { StatusBadge } from '../../components/StatusBadge';
 import { 
@@ -22,6 +23,13 @@ export function OpportunityDetailsPage() {
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<Partial<Opportunity>>({});
   const [newMemberId, setNewMemberId] = useState('');
+  const canManageOpportunity = hasRole(profile?.role, [
+    'receptionist',
+    'cityGuildMaster',
+    'stateGuildMaster',
+    'centralGuildMaster',
+    'nationalGuildMaster'
+  ]);
 
   useEffect(() => {
     if (!id) return;
@@ -37,7 +45,7 @@ export function OpportunityDetailsPage() {
 
   async function saveEdits(e: React.FormEvent) {
     e.preventDefault();
-    if (!opp || !profile) return;
+    if (!opp || !profile || !canManageOpportunity) return;
     await updateLedgerRecord('opportunities', opp.id, form, profile, 'Opportunity Updated');
     setOpp({ ...opp, ...form });
     setEditMode(false);
@@ -45,7 +53,7 @@ export function OpportunityDetailsPage() {
 
   async function assignMember(e: React.FormEvent) {
     e.preventDefault();
-    if (!opp || !profile || !newMemberId) return;
+    if (!opp || !profile || !newMemberId || !canManageOpportunity) return;
     const newAssigned = [...(opp.assignedMembers || []), newMemberId];
     await updateLedgerRecord('opportunities', opp.id, { assignedMembers: newAssigned }, profile, 'Member Assigned to Opportunity');
     setOpp({ ...opp, assignedMembers: newAssigned });
@@ -93,20 +101,22 @@ export function OpportunityDetailsPage() {
           </div>
         </div>
 
-        <div className="flex gap-3 w-full md:w-auto">
-          <button className="secondary flex-1 md:flex-none" onClick={() => setEditMode(!editMode)}>
-            <Edit3 className="w-4 h-4" /> {editMode ? 'Cancel' : 'Modify Opportunity'}
-          </button>
-          {opp.status === 'completed' ? (
-            <button className="primary flex-1 md:flex-none" onClick={() => navigate('/outcomes', { state: { oppId: opp.id, title: opp.title, orgId: opp.organizationId, orgName: opp.organizationName } })}>
-              <Target className="w-4 h-4" /> Record Outcome
+        {canManageOpportunity && (
+          <div className="flex gap-3 w-full md:w-auto">
+            <button className="secondary flex-1 md:flex-none" onClick={() => setEditMode(!editMode)}>
+              <Edit3 className="w-4 h-4" /> {editMode ? 'Cancel' : 'Modify Opportunity'}
             </button>
-          ) : (
-            <button className="primary flex-1 md:flex-none" onClick={() => navigate('/quests/register', { state: { oppId: opp.id, title: opp.title, orgId: opp.organizationId, orgName: opp.organizationName, needId: opp.needId, showWizard: true } })}>
-              <Sparkles className="w-4 h-4" /> Spawn Quest
-            </button>
-          )}
-        </div>
+            {opp.status === 'completed' ? (
+              <button className="primary flex-1 md:flex-none" onClick={() => navigate('/outcomes', { state: { oppId: opp.id, title: opp.title, orgId: opp.organizationId, orgName: opp.organizationName } })}>
+                <Target className="w-4 h-4" /> Record Outcome
+              </button>
+            ) : (
+              <button className="primary flex-1 md:flex-none" onClick={() => navigate('/quests/register', { state: { oppId: opp.id, title: opp.title, orgId: opp.organizationId, orgName: opp.organizationName, needId: opp.needId, showWizard: true } })}>
+                <Sparkles className="w-4 h-4" /> Spawn Quest
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Health Summary Grid */}
@@ -150,7 +160,7 @@ export function OpportunityDetailsPage() {
               <h2 className="text-xl font-bold tracking-tight">Opportunity Scope</h2>
             </div>
             
-            {editMode ? (
+            {editMode && canManageOpportunity ? (
               <form className="space-y-6" onSubmit={saveEdits}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -257,18 +267,20 @@ export function OpportunityDetailsPage() {
               <h2 className="text-sm font-bold uppercase tracking-wider text-sky-600">Assigned Personnel</h2>
             </div>
             
-            <form className="flex gap-2 mb-6" onSubmit={assignMember}>
-              <input 
-                className="flex-1 !py-2 !text-xs !bg-[var(--bg)]" 
-                placeholder="Member UID..." 
-                value={newMemberId} 
-                onChange={e => setNewMemberId(e.target.value)} 
-                required 
-              />
-              <button className="primary !p-2 rounded-xl" type="submit">
-                <Plus className="w-4 h-4" />
-              </button>
-            </form>
+            {canManageOpportunity && (
+              <form className="flex gap-2 mb-6" onSubmit={assignMember}>
+                <input 
+                  className="flex-1 !py-2 !text-xs !bg-[var(--bg)]" 
+                  placeholder="Member UID..." 
+                  value={newMemberId} 
+                  onChange={e => setNewMemberId(e.target.value)} 
+                  required 
+                />
+                <button className="primary !p-2 rounded-xl" type="submit" aria-label="Assign member">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </form>
+            )}
 
             <div className="space-y-2">
               {opp.assignedMembers?.map(uid => (

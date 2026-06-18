@@ -44,6 +44,50 @@ export const HumanOpsService = {
     });
   },
 
+  async triggerEmergencySuccession(userId: string, actor: GuildUser) {
+    const userRef = doc(db, 'users', userId);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) throw new Error('User not found');
+    const user = snap.data() as GuildUser;
+
+    if (!user.successionPlan?.primaryHolderId) {
+      throw new Error('No succession plan configured for this role.');
+    }
+
+    const backupId = user.successionPlan.backupHolderId || user.successionPlan.emergencyHolderId;
+    if (!backupId) throw new Error('No backup holder identified in succession plan.');
+
+    const batch = writeBatch(db);
+    
+    // 1. Mark original user as 'archived' or 'inactive'
+    batch.update(userRef, { 
+      status: 'inactive', 
+      role: 'member', // Demote to prevent unauthorized access
+      updatedAt: nowIso() 
+    });
+
+    // 2. Promote backup to original role
+    const backupRef = doc(db, 'users', backupId);
+    batch.update(backupRef, { 
+      role: user.role, 
+      status: 'active',
+      updatedAt: nowIso() 
+    });
+
+    // 3. Log the takeover
+    const logRef = doc(collection(db, 'activityLogs'));
+    batch.set(logRef, {
+      userId: actor.uid,
+      userName: actor.fullName,
+      action: `EMERGENCY SUCCESSION: ${backupId} took over role ${user.role} from ${userId}`,
+      time: nowIso(),
+      relatedEntityType: 'users',
+      relatedEntityId: backupId
+    });
+
+    await batch.commit();
+  },
+
   // Ownership Transfer System
   async bulkTransfer(record: Omit<TransferRecord, 'id' | 'createdAt' | 'updatedAt' | 'archiveStatus'>) {
     const batch = writeBatch(db);

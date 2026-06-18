@@ -1,5 +1,5 @@
 import { createLedgerRecord, updateLedgerRecord, getRecord, listRecords, logActivity } from '../lib/repository';
-import type { GuildUser, Need, Opportunity, Quest, QuestSubmission, GuildRole } from '../types/guild';
+import type { GuildUser, Need, Opportunity, Quest, QuestSubmission, GuildRole, QuestStatus } from '../types/guild';
 import { db } from '../lib/firebase';
 import { doc, getDoc, updateDoc, increment, collection, query, getDocs, where, runTransaction } from 'firebase/firestore';
 import { getStateByName, getCityCode } from '../lib/jurisdiction';
@@ -70,15 +70,44 @@ export async function generateGuildQuestId(
   });
 }
 
+export const VALID_QUEST_TRANSITIONS: Record<QuestStatus, QuestStatus[]> = {
+  draft: ['open', 'cancelled', 'archived'],
+  open: ['assigned', 'cancelled', 'archived'],
+  assigned: ['inProgress', 'open', 'cancelled', 'archived'], // Can go back to open if someone drops
+  inProgress: ['underReview', 'cancelled', 'archived'],
+  underReview: ['completed', 'assigned', 'cancelled'],
+  completed: ['closed', 'archived'],
+  closed: ['archived'],
+  cancelled: ['archived'],
+  archived: [] // Terminal
+};
+
+export function validateQuestTransition(current: QuestStatus, next: QuestStatus) {
+  if (current === next) return true;
+  const allowed = VALID_QUEST_TRANSITIONS[current] || [];
+  return allowed.includes(next);
+}
+
 // 2. Opportunity -> Quest
 export async function spawnQuestForOpportunity(
   opportunity: Opportunity, 
   questData: Partial<Quest>, 
   profile: GuildUser
 ) {
-  // Validation: No negative money
-  if ((questData.paymentAmount || 0) < 0 || (questData.estimatedValue || 0) < 0) {
-    throw new Error('Financial values cannot be negative.');
+  // Logic Audit: No negative money or impossible financial states
+  const amount = questData.paymentAmount || 0;
+  const val = questData.estimatedValue || 0;
+  const commission = questData.guildCommission || 0;
+  const revenue = questData.guildRevenue || 0;
+  const payout = questData.memberPayout || 0;
+
+  if (amount < 0 || val < 0 || commission < 0 || revenue < 0 || payout < 0) {
+    throw new Error('Logic Error: Financial values cannot be negative.');
+  }
+
+  if (amount > 0 && amount !== (revenue + payout)) {
+    // Audit: Revenue tracking check
+    console.warn('Revenue Audit: Payment amount does not match Revenue + Payout sum.');
   }
 
   const questId = await generateGuildQuestId(
@@ -123,19 +152,23 @@ export async function assignMemberToQuest(
     if (!snap.exists()) throw new Error('Quest not found');
     const quest = snap.data() as Quest;
 
-    if (quest.status === 'completed' || quest.status === 'closed' || quest.status === 'archived') {
-      throw new Error(`Cannot assign to quest in status: ${quest.status}`);
+    if (!validateQuestTransition(quest.status, 'assigned')) {
+      throw new Error(`Invalid lifecycle transition from ${quest.status} to assigned`);
     }
 
     const assigned = quest.assignedMembers || [];
     if (assigned.includes(memberId)) throw new Error('Member already assigned');
 
-    if (quest.membersRequired && assigned.length >= quest.membersRequired) {
-      throw new Error('Quest capacity reached');
+    const capacity = quest.membersRequired || 1;
+    if (assigned.length >= capacity) {
+      throw new Error('Quest recruitment capacity reached');
     }
 
     const newAssigned = [...assigned, memberId];
-    const newStatus = quest.status === 'open' ? 'assigned' : quest.status;
+    
+    // Automatically close recruitment if capacity reached
+    const isFull = newAssigned.length >= capacity;
+    const newStatus: QuestStatus = isFull ? 'assigned' : 'open';
 
     transaction.update(questRef, {
       assignedMembers: newAssigned,
@@ -147,7 +180,7 @@ export async function assignMemberToQuest(
     await logActivity({
       userId: profile.uid,
       userName: profile.fullName,
-      action: `Member ${memberId} assigned to quest ${questId}`,
+      action: `Member ${memberId} assigned to quest ${questId}. Status: ${newStatus}`,
       relatedEntityType: 'quests',
       relatedEntityId: questId
     });

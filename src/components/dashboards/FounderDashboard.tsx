@@ -6,7 +6,7 @@ import { ActivityLog, Organization, Opportunity, Quest, GuildUser, RevenueEvent,
 import { 
   Shield, Target, Activity, TrendingUp, Users, BookOpen, 
   AlertCircle, Clock, CheckCircle2, Map, Plus, ArrowUpRight,
-  Globe, UserCheck, BarChart3, HardHat
+  Globe, UserCheck, BarChart3, HardHat, MapPin, UsersRound
 } from 'lucide-react';
 import { auditQuestHealth, type HealthIssue } from '../../services/healthService';
 import { approveUserRole } from '../../services/workflowService';
@@ -227,7 +227,7 @@ export function FounderDashboard() {
                         <span className="font-bold text-sm">{log.userName}</span>
                       </td>
                       <td className="text-sm font-medium text-[var(--text-secondary)]">{log.action}</td>
-                      <td><StatusBadge status={log.relatedEntityType} /></td>
+                      <td><StatusBadge status={log.relatedEntityType || 'system'} /></td>
                       <td className="pr-6 text-right text-[10px] text-[var(--text-muted)] font-mono">
                         {new Date(log.time).toLocaleTimeString()}
                       </td>
@@ -283,4 +283,3 @@ export function FounderDashboard() {
     </div>
   );
 }
-

@@ -3,8 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { 
   BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag, 
   IndianRupee, LayoutDashboard, LogOut, Menu, Moon, Shield, 
-  Sparkles, Sun, UsersRound, X, Search, Bell, Settings,
-  ChevronRight, Command
+  Sparkles, Sun, UsersRound, X
 } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useAuth } from '../context/AuthContext';
@@ -20,7 +19,7 @@ const nav = [
   { group: 'Intake', to: '/needs', label: 'Needs', icon: Flag, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Operations', to: '/opportunities', label: 'Opportunities', icon: Sparkles, roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Operations', to: '/quests', label: 'Quests', icon: ClipboardCheck, roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
-  { group: 'Operations', to: '/submissions', label: 'Submissions', icon: ClipboardCheck, roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
+  { group: 'Operations', to: '/submissions', label: 'Submissions', icon: ClipboardCheck, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Closeout', to: '/outcomes', label: 'Outcomes', icon: Shield, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Closeout', to: '/revenue', label: 'Revenue', icon: IndianRupee, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Closeout', to: '/verification', label: 'Verification', icon: Shield, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
@@ -31,7 +30,7 @@ const nav = [
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`flex items-center justify-center rounded-xl bg-black border border-[var(--primary)]/30 ${compact ? 'h-8 w-8' : 'h-10 w-10'}`}>
+    <div className={`flex items-center justify-center rounded-xl bg-black border border-[var(--primary)]/35 shadow-sm ${compact ? 'h-8 w-8' : 'h-10 w-10'}`}>
       <img src="/guild-logo.png" alt="" className={`${compact ? 'h-5 w-5' : 'h-6 w-6'} object-contain`} />
     </div>
   );
@@ -67,7 +66,7 @@ export function AppShell() {
       <NetworkIndicator />
       
       {/* Sidebar */}
-      <aside className="sidebar hidden md:flex flex-col border-r border-[var(--border)] bg-[var(--bg)]">
+      <aside className="sidebar hidden md:flex flex-col">
         <div className="flex items-center gap-3 mb-10 px-2">
           <BrandMark />
           <div>
@@ -76,7 +75,7 @@ export function AppShell() {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto space-y-6">
+        <nav className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
           {Object.entries(groupedNav).map(([group, items]) => (
             <div key={group}>
               <p className="px-4 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-60">
@@ -91,13 +90,14 @@ export function AppShell() {
                       to={item.to} 
                       end={item.to === '/'} 
                       className={({ isActive }) => `
-                        flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all
+                        group relative flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all
                         ${isActive 
                           ? 'bg-[var(--card-subtle)] text-[var(--text)] ring-1 ring-[var(--border-light)] shadow-sm' 
                           : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--card-subtle)]/50'}
                       `}
                     >
-                      <Icon className={`w-4 h-4 ${item.to === window.location.pathname ? 'text-[var(--primary)]' : ''}`} />
+                      <span className={`absolute left-0 h-5 w-0.5 rounded-full bg-[var(--primary)] transition-opacity ${item.to === window.location.pathname ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`} />
+                      <Icon className={`w-4 h-4 ${item.to === window.location.pathname ? 'text-[var(--primary)]' : ''}`} aria-hidden="true" />
                       {item.label}
                     </NavLink>
                   );
@@ -116,8 +116,8 @@ export function AppShell() {
               <p className="text-xs font-bold truncate">{profile?.fullName}</p>
               <p className="text-[10px] text-[var(--text-muted)] truncate">{profile?.role ? roleLabels[profile.role] : 'Member'}</p>
             </div>
-            <button onClick={handleLogout} className="text-[var(--text-muted)] hover:text-[var(--error)] transition-colors">
-              <LogOut className="w-4 h-4" />
+            <button onClick={handleLogout} className="icon-button !h-8 !w-8 !bg-transparent hover:!bg-[var(--error)]/10 hover:!text-[var(--error)]" aria-label="Log out">
+              <LogOut className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -134,11 +134,11 @@ export function AppShell() {
                   <span className="text-xs text-[var(--text-muted)]">{jurisdictionLabel}</span>
                 </div>
               </div>
-              <button className="p-2 bg-[var(--card-subtle)] rounded-xl" onClick={() => setIsMobileMenuOpen(false)}>
-                <X className="w-6 h-6"/>
+              <button className="icon-button !h-11 !w-11" onClick={() => setIsMobileMenuOpen(false)} aria-label="Close menu">
+                <X className="w-6 h-6" aria-hidden="true" />
               </button>
            </div>
-           <nav className="flex-1 overflow-y-auto space-y-8 pb-10">
+           <nav className="flex-1 overflow-y-auto space-y-8 pb-10 pr-2 custom-scrollbar">
               {Object.entries(groupedNav).map(([group, items]) => (
                 <div key={group}>
                   <p className="mb-3 px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">{group}</p>
@@ -156,7 +156,7 @@ export function AppShell() {
                             ${isActive ? 'bg-[var(--primary)] text-black shadow-lg shadow-[var(--primary)]/20' : 'bg-[var(--card-subtle)] text-[var(--text-secondary)] border border-[var(--border)]'}
                           `}
                         >
-                          <Icon className="w-5 h-5" />
+                          <Icon className="w-5 h-5" aria-hidden="true" />
                           <span>{item.label}</span>
                         </NavLink>
                       );
@@ -166,7 +166,7 @@ export function AppShell() {
               ))}
            </nav>
            <button className="w-full py-4 rounded-2xl bg-[var(--error)]/10 text-[var(--error)] font-bold flex items-center justify-center gap-2" onClick={handleLogout}>
-            <LogOut className="w-5 h-5" /> Logout
+            <LogOut className="w-5 h-5" aria-hidden="true" /> Logout
            </button>
         </div>
       )}
@@ -184,8 +184,8 @@ export function AppShell() {
           </div>
           
           <div className="md:hidden flex items-center justify-between w-full">
-            <button className="p-2 bg-[var(--card-subtle)] rounded-xl" onClick={() => setIsMobileMenuOpen(true)}>
-              <Menu className="w-6 h-6" />
+            <button className="icon-button !h-11 !w-11" onClick={() => setIsMobileMenuOpen(true)} aria-label="Open menu">
+              <Menu className="w-6 h-6" aria-hidden="true" />
             </button>
             <div className="flex items-center gap-2">
               <BrandMark compact />
@@ -198,15 +198,16 @@ export function AppShell() {
             <GlobalSearch />
             <div className="h-6 w-px bg-[var(--border)] mx-2" />
             <NotificationCenter />
-            <button 
-              className="p-2.5 bg-[var(--card-subtle)] text-[var(--text-secondary)] hover:text-[var(--text)] rounded-xl transition-all" 
+            <button
+              className="icon-button"
               onClick={toggleTheme}
-              title="Toggle Theme"
+              title="Toggle theme"
+              aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
             >
-              {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
             </button>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 text-[var(--primary)] text-[10px] font-bold uppercase tracking-wider">
-              <Shield className="w-3 h-3" />
+            <div className="role-chip">
+              <Shield className="w-3 h-3" aria-hidden="true" />
               {profile?.role ? roleLabels[profile.role] : 'Guest'}
             </div>
           </div>
@@ -233,6 +234,10 @@ export function AppShell() {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: var(--text-muted);
+        }
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: var(--border) transparent;
         }
       `}</style>
     </div>

@@ -49,27 +49,27 @@ service cloud.firestore {
     }
 
     match /organizations/{id} {
-      allow read: if signedIn();
+      allow read: if isReceptionist();
       allow create: if signedIn() && canWriteJuris(request.resource.data);
       allow update: if signedIn() && canWriteJuris(resource.data);
       allow delete: if noPermanentDelete();
     }
 
     match /needs/{id} {
-      allow read: if signedIn();
+      allow read: if isReceptionist();
       allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
       allow delete: if noPermanentDelete();
     }
 
     match /opportunities/{id} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (targetJuris().cityId == myJuris().cityId || isCentralMaster());
       allow create, update: if signedIn() && (canWriteJuris(request.resource.data || resource.data) || incomingJuris().applicants.hasAny([request.auth.uid]));
       allow delete: if noPermanentDelete();
     }
 
     match /quests/{id} {
-      allow read: if signedIn();
-      allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
+      allow read: if signedIn() && (targetJuris().cityId == myJuris().cityId || isCentralMaster());
+      allow create, update: if signedIn() && (canWriteJuris(request.resource.data || resource.data));
       allow delete: if noPermanentDelete();
     }
 
@@ -81,13 +81,13 @@ service cloud.firestore {
     }
 
     match /outcomes/{id} {
-      allow read: if signedIn();
+      allow read: if isReceptionist();
       allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
       allow delete: if noPermanentDelete();
     }
 
     match /verifications/{id} {
-      allow read: if signedIn();
+      allow read: if isReceptionist();
       allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
       allow delete: if noPermanentDelete();
     }
