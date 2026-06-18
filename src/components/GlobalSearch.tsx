@@ -1,19 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, X, Command as CommandIcon, ArrowRight, Building2, Sparkles, ClipboardCheck, User, Flag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, query, where, QueryConstraint } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { StatusBadge } from './StatusBadge';
+import { useAuth } from '../context/AuthContext';
 
 export function GlobalSearch() {
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [queryStr, setQueryStr] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  const jurisConstraints = useMemo<QueryConstraint[]>(() => {
+    if (!profile) return [];
+    if (['guildFounder', 'centralGuildMaster', 'founder'].includes(profile.role)) return [];
+    
+    if (profile.role === 'stateGuildMaster') {
+      return [where('jurisdiction.stateId', '==', profile.jurisdiction.stateId)];
+    }
+    
+    return [where('jurisdiction.cityId', '==', profile.jurisdiction.cityId)];
+  }, [profile]);
+
   useEffect(() => {
-    if (!queryStr || queryStr.length < 2) {
+    if (!queryStr || queryStr.length < 2 || !profile) {
       setResults([]);
       return;
     }
@@ -25,12 +38,22 @@ export function GlobalSearch() {
       { name: 'organizations', label: 'Organization', path: '/organizations', icon: Building2 },
       { name: 'opportunities', label: 'Opportunity', path: '/opportunities', icon: Sparkles },
       { name: 'quests', label: 'Quest', path: '/quests', icon: ClipboardCheck },
-      { name: 'users', label: 'Member', path: '/admin', icon: User }
+      { name: 'users', label: 'Member', path: '/admin', icon: User, adminOnly: true }
     ];
 
     Promise.all(
       collections.map(async (c) => {
-        const q = query(collection(db, c.name), where('archiveStatus', '==', 'active'), limit(50));
+        // Role check for collection
+        if (c.adminOnly && !['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'].includes(profile.role)) {
+          return [];
+        }
+
+        const q = query(
+          collection(db, c.name), 
+          where('archiveStatus', '==', 'active'),
+          ...jurisConstraints,
+          limit(50)
+        );
         const snap = await getDocs(q);
         return snap.docs.map(doc => {
           const data = doc.data();
@@ -50,7 +73,7 @@ export function GlobalSearch() {
       setLoading(false);
     });
 
-  }, [queryStr]);
+  }, [queryStr, profile, jurisConstraints]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

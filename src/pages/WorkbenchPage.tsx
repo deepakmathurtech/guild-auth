@@ -298,9 +298,13 @@ export function WorkbenchPage({ kind }: { kind: keyof typeof configs }) {
     await archiveLedgerRecord(config.collectionName as any, id, profile);
   }
 
-  async function quickUpdate(id: string, key: string, value: string) {
+  async function quickUpdate(id: string, key: string, value: string, currentUpdatedAt?: string) {
     if (!profile) return;
-    await updateLedgerRecord(config.collectionName as any, id, { [key]: value } as any, profile, `${config.title} updated`);
+    try {
+      await updateLedgerRecord(config.collectionName as any, id, { [key]: value } as any, profile, `${config.title} updated`, { checkUpdatedAt: currentUpdatedAt });
+    } catch (err: any) {
+      alert(`Concurrency Error: ${err.message}. Please refresh.`);
+    }
   }
 
   return (
@@ -326,8 +330,8 @@ export function WorkbenchPage({ kind }: { kind: keyof typeof configs }) {
           <div className="record-head"><strong>{record.title || record.name || record.fullName || record.action || record.id}</strong><small>{record.status || record.currentStatus || record.role || record.decision || record.type}</small></div>
           {Object.entries(record).filter(([key]) => !['createdAtServer', 'updatedAtServer'].includes(key)).slice(0, 12).map(([key, value]) => <p key={key}><span>{key}</span>{renderValue(value)}</p>)}
           <div className="record-actions">
-            {'status' in record && <select value={record.status} onChange={(e) => quickUpdate(record.id, 'status', e.target.value)}><option>{record.status}</option><option value="open">open</option><option value="matching">matching</option><option value="assigned">assigned</option><option value="inProgress">inProgress</option><option value="completed">completed</option><option value="archived">archived</option></select>}
-            {'currentStatus' in record && <select value={record.currentStatus} onChange={(e) => quickUpdate(record.id, 'currentStatus', e.target.value)}><option>{record.currentStatus}</option><option value="new">new</option><option value="contacted">contacted</option><option value="active">active</option><option value="partner">partner</option><option value="inactive">inactive</option></select>}
+            {'status' in record && <select value={record.status} onChange={(e) => quickUpdate(record.id, 'status', e.target.value, record.updatedAt)}><option>{record.status}</option><option value="open">open</option><option value="matching">matching</option><option value="assigned">assigned</option><option value="inProgress">inProgress</option><option value="completed">completed</option><option value="archived">archived</option></select>}
+            {'currentStatus' in record && <select value={record.currentStatus} onChange={(e) => quickUpdate(record.id, 'currentStatus', e.target.value, record.updatedAt)}><option>{record.currentStatus}</option><option value="new">new</option><option value="contacted">contacted</option><option value="active">active</option><option value="partner">partner</option><option value="inactive">inactive</option></select>}
             {record.id && config.collectionName !== 'activityLogs' && <button className="ghost" type="button" onClick={() => archive(record.id)}>Archive</button>}
           </div>
         </article>)}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { limit, orderBy, query, where, collection, onSnapshot } from 'firebase/firestore';
+import { limit, orderBy, query, where, collection, onSnapshot, getCountFromServer } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import type { ActivityLog, DashboardMetric, Need, Opportunity, Organization, QuestSubmission, RevenueEvent, VerificationRecord, Quest, Outcome } from '../types/guild';
@@ -25,6 +25,7 @@ function useCollection<T>(name: string, constraints: any[] = []) {
 
 export function DashboardPage() {
   const { profile, loading: authLoading } = useAuth();
+  const [counts, setCounts] = useState<Record<string, number>>({});
   
   const jurisConstraints = useMemo(() => {
     if (!profile) return [];
@@ -39,6 +40,34 @@ export function DashboardPage() {
     return [...base, where('jurisdiction.cityId', '==', profile.jurisdiction.cityId)];
   }, [profile]);
 
+  useEffect(() => {
+    if (!profile) return;
+    
+    // Production Scalability: Get actual counts from server for metrics
+    const fetchCounts = async () => {
+      const qOrgs = query(collection(db, 'organizations'), ...jurisConstraints);
+      const qNeeds = query(collection(db, 'needs'), ...jurisConstraints, where('status', 'in', ['open', 'matching', 'assigned', 'inProgress']));
+      const qOpps = query(collection(db, 'opportunities'), ...jurisConstraints, where('status', 'in', ['open', 'matching', 'assigned', 'inProgress']));
+      const qSubs = query(collection(db, 'questSubmissions'), ...jurisConstraints, where('status', '==', 'pending'));
+
+      const [sOrgs, sNeeds, sOpps, sSubs] = await Promise.all([
+        getCountFromServer(qOrgs),
+        getCountFromServer(qNeeds),
+        getCountFromServer(qOpps),
+        getCountFromServer(qSubs)
+      ]);
+
+      setCounts({
+        organizations: sOrgs.data().count,
+        activeNeeds: sNeeds.data().count,
+        activeOpps: sOpps.data().count,
+        pendingSubmissions: sSubs.data().count
+      });
+    };
+
+    fetchCounts();
+  }, [profile, jurisConstraints]);
+
   const { items: organizations, loading: orgsLoading } = useCollection<Organization>('organizations', [...jurisConstraints, limit(200)]);
   const { items: needs } = useCollection<Need>('needs', [...jurisConstraints, limit(200)]);
   const { items: opportunities } = useCollection<Opportunity>('opportunities', [...jurisConstraints, limit(200)]);
@@ -51,20 +80,17 @@ export function DashboardPage() {
 
   const metrics = useMemo<DashboardMetric[]>(() => {
     if (!profile) return [];
-    const activeNeeds = needs.filter((item) => ['open', 'matching', 'assigned', 'inProgress'].includes(item.status));
-    const activeOpps = opportunities.filter((item) => ['open', 'matching', 'assigned', 'inProgress'].includes(item.status));
-    const pending = submissions.filter((item) => item.status === 'pending').length;
     const totalRevenue = revenue.reduce((sum, item) => sum + Number(item.amount || 0), 0);
     
     return [
-      { label: 'Organizations', value: organizations.length },
-      { label: 'Active Needs', value: activeNeeds.length },
-      { label: 'Active Opportunities', value: activeOpps.length },
-      { label: 'Pending Verifications', value: pending },
+      { label: 'Organizations', value: counts.organizations ?? organizations.length },
+      { label: 'Active Needs', value: counts.activeNeeds ?? 0 },
+      { label: 'Active Opportunities', value: counts.activeOpps ?? 0 },
+      { label: 'Pending Verifications', value: counts.pendingSubmissions ?? 0 },
       { label: 'Revenue Tracked', value: `₹${totalRevenue.toLocaleString('en-IN')}` },
       { label: 'Members Helped', value: new Set(opportunities.flatMap((item) => item.assignedMembers || [])).size }
     ];
-  }, [organizations, needs, opportunities, submissions, revenue, profile]);
+  }, [organizations, needs, opportunities, submissions, revenue, profile, counts]);
 
   if (authLoading || (orgsLoading && organizations.length === 0)) return (
     <div className="flex flex-col items-center justify-center h-[60vh] animate-fade-up">

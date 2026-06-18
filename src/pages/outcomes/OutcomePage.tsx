@@ -65,12 +65,17 @@ export function OutcomePage() {
         throw new Error('Cannot create Outcome: The linked Opportunity must be marked as "completed" first.');
       }
 
+      if (form.revenueGenerated < 0) {
+        throw new Error('Revenue Generated cannot be negative.');
+      }
+
       // Create Outcome
       const outcomeRecord = await createLedgerRecord('outcomes', {
         ...form,
         participants: form.participants.split(',').map(s => s.trim()).filter(Boolean),
         evidence: form.evidence.split(',').map(s => s.trim()).filter(Boolean),
-        verificationStatus: 'verified' // Usually Outcomes are logged post-verification
+        verificationStatus: 'verified', // Usually Outcomes are logged post-verification
+        jurisdiction: profile.jurisdiction
       }, profile, 'Outcome Recorded');
 
       // If Revenue > 0, also create a Revenue Event
@@ -82,7 +87,8 @@ export function OutcomePage() {
           organizationName: form.organizationName,
           amount: form.revenueGenerated,
           date: new Date().toISOString().split('T')[0],
-          participants: outcomeRecord.participants
+          participants: outcomeRecord.participants,
+          jurisdiction: profile.jurisdiction
         }, profile, 'Revenue Recorded from Outcome');
       }
 
