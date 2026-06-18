@@ -6,22 +6,48 @@ import { useAuth } from '../../context/AuthContext';
 import type { Quest, QuestSubmission, GuildUser, Outcome, KnowledgeRecord, RevenueEvent, Need, Opportunity } from '../../types/guild';
 import { where } from 'firebase/firestore';
 import { MemberSearch } from '../../components/MemberSearch';
-import { ChevronDown, ChevronRight, FileText, CheckCircle, IndianRupee, ShieldCheck, History, BookOpen, Building, MapPin, Users } from 'lucide-react';
+import { 
+  ChevronDown, ChevronRight, FileText, CheckCircle, 
+  IndianRupee, ShieldCheck, History, BookOpen, 
+  Building, MapPin, Users, ChevronLeft,
+  Sparkles, Info, Target, Wallet, AlertCircle,
+  ExternalLink, BarChart3, Clock, UserPlus
+} from 'lucide-react';
 import { assignMemberToQuest } from '../../services/workflowService';
 
 // Reusable Section Component
-function CollapsibleSection({ title, icon, children, defaultOpen = false }: { title: string, icon: React.ReactNode, children: React.ReactNode, defaultOpen?: boolean }) {
+function CollapsibleSection({ title, icon, children, defaultOpen = false, accent = 'blue' }: { title: string, icon: React.ReactNode, children: React.ReactNode, defaultOpen?: boolean, accent?: string }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const colors: Record<string, string> = {
+    blue: 'text-sky-500 bg-sky-500/5',
+    emerald: 'text-emerald-500 bg-emerald-500/5',
+    amber: 'text-amber-500 bg-amber-500/5',
+    purple: 'text-purple-500 bg-purple-500/5',
+    rose: 'text-rose-500 bg-rose-500/5',
+    gold: 'text-[var(--primary)] bg-[var(--primary)]/5'
+  };
+
   return (
-    <div className="border border-[var(--border)] rounded-md mb-4 overflow-hidden bg-[var(--card)]">
+    <div className="panel !p-0 overflow-hidden group">
       <button 
-        className="w-full flex items-center justify-between p-4 bg-[var(--bg-alt)] hover:bg-gray-800 transition-colors text-left"
+        className={`w-full flex items-center justify-between p-5 text-left transition-all ${isOpen ? 'bg-[var(--card-subtle)]' : 'hover:bg-[var(--card-subtle)]/50'}`}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="font-bold flex items-center gap-2">{icon} {title}</span>
-        {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        <div className="flex items-center gap-4">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors[accent] || colors.blue}`}>
+            {icon}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider">{title}</h3>
+          </div>
+        </div>
+        {isOpen ? <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" /> : <ChevronRight className="w-5 h-5 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-all" />}
       </button>
-      {isOpen && <div className="p-4 border-t border-[var(--border)]">{children}</div>}
+      {isOpen && (
+        <div className="p-6 border-t border-[var(--border)] animate-in slide-in-from-top-2 duration-200">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -66,7 +92,6 @@ export function QuestDetailsPage() {
     if (!quest || !profile) return;
     try {
       await assignMemberToQuest(quest.id, user.uid, profile);
-      // Refresh local state or rely on subscription
       const updated = await getRecord('quests', quest.id);
       if (updated) setQuest(updated as Quest);
     } catch (err: any) {
@@ -76,7 +101,6 @@ export function QuestDetailsPage() {
 
   async function handleApply() {
     if (!quest || !profile) return;
-    // For applicants, we could also use a transaction, but let's at least use optimistic locking
     try {
       const newApplicants = [...(quest.applicants || []), profile.uid];
       await updateLedgerRecord('quests', quest.id, { applicants: newApplicants }, profile, 'Applied for Quest', { checkUpdatedAt: quest.updatedAt });
@@ -90,7 +114,6 @@ export function QuestDetailsPage() {
     if (!quest || !profile) return;
     try {
       await assignMemberToQuest(quest.id, uid, profile);
-      // Also remove from applicants
       const newApplicants = (quest.applicants || []).filter(a => a !== uid);
       await updateLedgerRecord('quests', quest.id, { applicants: newApplicants }, profile, `Accepted Applicant ${uid}`);
       const updated = await getRecord('quests', quest.id);
@@ -100,403 +123,332 @@ export function QuestDetailsPage() {
     }
   }
 
-  if (!quest) return <p className="p-8">Loading official guild record...</p>;
+  if (!quest) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="w-10 h-10 border-2 rounded-full animate-spin border-[var(--muted)] border-t-[var(--primary)]" />
+    </div>
+  );
 
   return (
-    <section className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
-      <div className="flex justify-between items-center mb-2">
-        <button className="ghost text-sm flex items-center gap-1" onClick={() => navigate('/quests')}>&larr; Back to Quest Registry</button>
-        <span className="text-xs text-[var(--muted)] uppercase tracking-widest font-bold">Guild Record System</span>
-      </div>
-
-      {/* SUMMARY CARD (Receptionist Reality Test) */}
-      <div className="bg-gradient-to-br from-blue-900/40 to-black border border-blue-500/30 p-6 rounded-lg shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4">
-           <StatusBadge status={quest.status} />
+    <div className="space-y-10 pb-20 animate-fade-up">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+        <div className="space-y-4">
+          <button 
+            className="group flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors" 
+            onClick={() => navigate('/quests')}
+          >
+            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
+            Quest Registry
+          </button>
+          
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="font-mono text-[10px] font-bold text-sky-500 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                {quest.guildQuestId}
+              </span>
+              <StatusBadge status={quest.status} />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{quest.title}</h1>
+            <div className="flex items-center gap-2 text-[var(--text-secondary)] font-medium">
+              <Building className="w-4 h-4 text-[var(--primary)]" />
+              <span>{quest.organizationName || quest.sourceName || 'Internal Guild'}</span>
+            </div>
+          </div>
         </div>
-        <p className="text-blue-400 font-mono font-bold text-sm tracking-wider mb-1">{quest.guildQuestId || quest.id}</p>
-        <h1 className="text-3xl font-bold mb-4">{quest.title}</h1>
-        
-        {/* MEMBER ACTIONS */}
+
         {profile?.role === 'member' && !quest.assignedMembers?.includes(profile.uid) && !quest.applicants?.includes(profile.uid) && quest.status === 'open' && (
-          <div className="mb-6">
-            <button className="primary w-full md:w-auto" onClick={handleApply}>Apply for this Quest</button>
-          </div>
-        )}
-        {profile?.role === 'member' && quest.applicants?.includes(profile.uid) && (
-          <div className="mb-6 bg-blue-500/20 border border-blue-500/50 p-3 rounded text-sm text-blue-200">
-            You have applied for this quest. Waiting for receptionist review.
-          </div>
+          <button className="primary !px-10 py-4 shadow-lg shadow-[var(--primary)]/20" onClick={handleApply}>
+            Apply for this Quest
+          </button>
         )}
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div>
-            <p className="text-[var(--muted)] text-xs uppercase mb-1">Organization</p>
-            <p className="font-semibold">{quest.organizationName || quest.sourceName || 'Internal Guild'}</p>
+        {profile?.role === 'member' && quest.applicants?.includes(profile.uid) && (
+          <div className="px-6 py-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-500 font-bold text-sm flex items-center gap-3">
+             <Clock className="w-4 h-4 animate-pulse" /> Application Pending Review
           </div>
-          <div>
-            <p className="text-[var(--muted)] text-xs uppercase mb-1">Receptionist</p>
-            <p className="font-semibold">{quest.assignedReceptionistName || 'Unassigned'}</p>
-          </div>
-          <div>
-            <p className="text-[var(--muted)] text-xs uppercase mb-1">Members</p>
-            <p className="font-semibold">{quest.assignedMembers?.length || 0} Assigned</p>
-          </div>
-          <div>
-            <p className="text-[var(--muted)] text-xs uppercase mb-1">Verifier</p>
-            <p className="font-semibold">{quest.verifierName || 'Pending'}</p>
-          </div>
-          <div>
-            <p className="text-[var(--muted)] text-xs uppercase mb-1">Financial</p>
-            <p className="font-semibold text-green-400">{quest.isPaid ? `Paid (${quest.paymentCurrency || '₹'}${quest.paymentAmount || 0})` : 'Unpaid Volunteer'}</p>
-          </div>
-          <div>
-            <p className="text-[var(--muted)] text-xs uppercase mb-1">Revenue Status</p>
-            <p className="font-semibold">{quest.revenueStatus || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-[var(--muted)] text-xs uppercase mb-1">Outcome</p>
-            <p className="font-semibold">{quest.outcomeStatus || 'Pending'}</p>
-          </div>
-          <div>
-            <p className="text-[var(--muted)] text-xs uppercase mb-1">Knowledge</p>
-            <p className="font-semibold">{quest.knowledgeSubmitted ? 'Submitted' : 'Pending'}</p>
+        )}
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="panel flex flex-col justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-4">Quest Health</p>
+          <div className="space-y-3">
+            <div className="flex justify-between items-end">
+              <span className="text-2xl font-bold text-[var(--text)]">{quest.completenessScore || 0}%</span>
+              <span className="text-[10px] font-bold uppercase text-[var(--text-muted)]">Completeness</span>
+            </div>
+            <div className="h-1.5 w-full bg-[var(--card-subtle)] rounded-full overflow-hidden border border-[var(--border)]">
+              <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${quest.completenessScore || 0}%` }} />
+            </div>
           </div>
         </div>
-        
-        {/* RECEPTIONIST WORKFLOW AUDIT */}
-        <div className="mt-6 pt-4 border-t border-blue-500/30">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="font-bold text-[var(--muted)]">Quest Completeness Score</span>
-            <span className="font-bold text-blue-400">{quest.completenessScore || 0}%</span>
+
+        <div className="panel flex flex-col justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-4">Financials</p>
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+               <IndianRupee className="w-5 h-5" />
+             </div>
+             <div>
+               <p className="text-lg font-bold text-[var(--text)]">
+                 {quest.isPaid ? `${quest.paymentCurrency || '₹'}${quest.paymentAmount || 0}` : 'Volunteer'}
+               </p>
+               <p className="text-[10px] font-bold uppercase text-emerald-500/70">Estimated Payout</p>
+             </div>
           </div>
-          <div className="w-full bg-gray-900 rounded-full h-2.5 mb-4">
-            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${Math.min(quest.completenessScore || 0, 100)}%` }}></div>
+        </div>
+
+        <div className="panel flex flex-col justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-4">Personnel</p>
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-500">
+               <Users className="w-5 h-5" />
+             </div>
+             <div>
+               <p className="text-lg font-bold text-[var(--text)]">{quest.assignedMembers?.length || 0} Members</p>
+               <p className="text-[10px] font-bold uppercase text-sky-500/70">Active Unit</p>
+             </div>
           </div>
-          {quest.missingActions && quest.missingActions.length > 0 && (
-            <div className="bg-red-900/30 border border-red-500/30 p-3 rounded text-sm">
-              <span className="font-bold text-red-400 uppercase text-xs">Missing Actions</span>
-              <ul className="list-disc pl-5 mt-1 text-red-200">
-                {quest.missingActions.map(action => <li key={action}>{action}</li>)}
-              </ul>
-            </div>
-          )}
+        </div>
+
+        <div className="panel flex flex-col justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-4">Protocol</p>
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+               <ShieldCheck className="w-5 h-5" />
+             </div>
+             <div>
+               <p className="text-lg font-bold text-[var(--text)]">{quest.verificationLevel?.split(' ')[0] || 'System'}</p>
+               <p className="text-[10px] font-bold uppercase text-purple-500/70">Security Clear</p>
+             </div>
+          </div>
         </div>
       </div>
 
-      {/* SECTIONS */}
-      <div className="mt-8 space-y-4">
-        
-        <CollapsibleSection title="1. Quest Information" icon={<FileText size={18}/>} defaultOpen>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-[var(--muted)] uppercase mb-1">Title</label>
-              <input className="w-full text-sm" value={quest.title} onChange={e => setQuest({...quest, title: e.target.value})} onBlur={e => handleUpdateField('title', e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--muted)] uppercase mb-1">Category</label>
-              <input className="w-full text-sm" value={quest.category} onChange={e => setQuest({...quest, category: e.target.value})} onBlur={e => handleUpdateField('category', e.target.value)} />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs text-[var(--muted)] uppercase mb-1">Description</label>
-              <textarea className="w-full text-sm" rows={4} value={quest.description} onChange={e => setQuest({...quest, description: e.target.value})} onBlur={e => handleUpdateField('description', e.target.value)} />
-            </div>
-            <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Classification</label>
-               <select className="w-full text-sm" value={quest.classification || ''} onChange={e => handleUpdateField('classification', e.target.value)}>
-                 <option value="">Select...</option>
-                 <option>Internal Guild</option><option>External Client</option><option>Community Service</option>
-                 <option>Revenue Generating</option><option>Training</option><option>Partnership</option><option>Research</option><option>Emergency</option>
-               </select>
-            </div>
-            <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Mode</label>
-               <select className="w-full text-sm" value={quest.mode || ''} onChange={e => handleUpdateField('mode', e.target.value)}>
-                 <option value="">Select...</option><option>Remote</option><option>Physical</option><option>Hybrid</option>
-               </select>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="2. Source & Organization" icon={<Building size={18}/>}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Source Type</label>
-               <select className="w-full text-sm" value={quest.sourceType || ''} onChange={e => handleUpdateField('sourceType', e.target.value)}>
-                 <option value="">Select...</option><option>Organization</option><option>Individual</option>
-                 <option>Guild Internal</option><option>Partner Organization</option><option>Government</option>
-               </select>
-             </div>
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Source Name</label>
-               <input className="w-full text-sm" value={quest.sourceName || ''} onChange={e => setQuest({...quest, sourceName: e.target.value})} onBlur={e => handleUpdateField('sourceName', e.target.value)} />
-             </div>
-             
-             {/* BIDIRECTIONAL LINK DISPLAYS */}
-             <div className="col-span-1 md:col-span-2 mt-4 p-4 bg-[var(--bg-alt)] border border-[var(--border)] rounded">
-                <h4 className="font-bold text-sm mb-2">Linked Need</h4>
-                {linkedNeed ? (
-                  <div className="flex justify-between items-center text-sm">
-                    <span>{linkedNeed.title}</span>
-                    <button className="ghost text-xs" onClick={() => navigate(`/needs/${linkedNeed.id}`)}>Open &rarr;</button>
-                  </div>
-                ) : <p className="text-sm text-[var(--muted)]">No Need Linked</p>}
-             </div>
-             
-             <div className="col-span-1 md:col-span-2 p-4 bg-[var(--bg-alt)] border border-[var(--border)] rounded">
-                <h4 className="font-bold text-sm mb-2">Linked Opportunity</h4>
-                {linkedOpp ? (
-                  <div className="flex justify-between items-center text-sm">
-                    <span>{linkedOpp.title}</span>
-                    <button className="ghost text-xs" onClick={() => navigate(`/opportunities/${linkedOpp.id}`)}>Open &rarr;</button>
-                  </div>
-                ) : <p className="text-sm text-[var(--muted)]">No Opportunity Linked</p>}
-             </div>
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="3. Requirements & Logistics" icon={<CheckCircle size={18}/>}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Required Rank</label>
-               <select className="w-full text-sm" value={quest.requiredRank || 'Applicant'} onChange={e => handleUpdateField('requiredRank', e.target.value)}>
-                 <option>Applicant</option><option>F</option><option>E</option><option>D</option>
-                 <option>C</option><option>B</option><option>A</option><option>S</option>
-               </select>
-            </div>
-            <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Priority</label>
-               <select className="w-full text-sm" value={quest.priority || 'medium'} onChange={e => handleUpdateField('priority', e.target.value)}>
-                 <option>low</option><option>medium</option><option>high</option><option>urgent</option>
-               </select>
-            </div>
-            <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Estimated Hours</label>
-               <input type="number" className="w-full text-sm" value={quest.estimatedHours || 0} onChange={e => handleUpdateField('estimatedHours', Number(e.target.value))} />
-            </div>
-            <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Difficulty</label>
-               <select className="w-full text-sm" value={quest.difficulty || 'medium'} onChange={e => handleUpdateField('difficulty', e.target.value)}>
-                 <option>easy</option><option>medium</option><option>hard</option><option>legendary</option>
-               </select>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="4. Payment & Revenue" icon={<IndianRupee size={18}/>}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-             <div className="col-span-full">
-               <label className="flex items-center space-x-2 text-sm font-bold text-yellow-400">
-                 <input type="checkbox" checked={quest.isPaid || false} onChange={e => handleUpdateField('isPaid', e.target.checked)} />
-                 <span>This is a Paid Quest</span>
-               </label>
-             </div>
-             
-             {quest.isPaid && (
-               <>
-                 <div>
-                   <label className="block text-xs text-[var(--muted)] uppercase mb-1">Payment Amount</label>
-                   <input type="number" className="w-full text-sm" value={quest.paymentAmount || 0} onChange={e => handleUpdateField('paymentAmount', Number(e.target.value))} />
-                 </div>
-                 <div>
-                   <label className="block text-xs text-[var(--muted)] uppercase mb-1">Currency</label>
-                   <input className="w-full text-sm" value={quest.paymentCurrency || 'INR'} onChange={e => setQuest({...quest, paymentCurrency: e.target.value})} onBlur={e => handleUpdateField('paymentCurrency', e.target.value)} />
-                 </div>
-                 <div>
-                   <label className="block text-xs text-[var(--muted)] uppercase mb-1">Who Pays?</label>
-                   <select className="w-full text-sm" value={quest.whoPays || ''} onChange={e => handleUpdateField('whoPays', e.target.value)}>
-                     <option value="">Select...</option><option>Organization</option><option>Guild</option><option>Partner</option><option>Individual</option>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-10">
+        <div className="space-y-6">
+          {/* Main Quest Data Sections */}
+          <CollapsibleSection title="Core Briefing" icon={<FileText className="w-5 h-5" />} defaultOpen accent="gold">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Deployment Title</label>
+                  <input className="text-sm font-medium" value={quest.title} onChange={e => setQuest({...quest, title: e.target.value})} onBlur={e => handleUpdateField('title', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Classification</label>
+                  <select className="text-sm font-medium" value={quest.category} onChange={e => setQuest({...quest, category: e.target.value})} onBlur={e => handleUpdateField('category', e.target.value)}>
+                    <option>Tech</option><option>Creative</option><option>Logistics</option><option>Security</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Mission Objective</label>
+                <textarea className="text-sm leading-relaxed" rows={5} value={quest.description} onChange={e => setQuest({...quest, description: e.target.value})} onBlur={e => handleUpdateField('description', e.target.value)} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Operational Mode</label>
+                   <select className="text-sm font-medium" value={quest.mode || ''} onChange={e => handleUpdateField('mode', e.target.value)}>
+                     <option value="">Select...</option><option>Remote</option><option>Physical</option><option>Hybrid</option>
                    </select>
-                 </div>
-                 <div>
-                   <label className="block text-xs text-[var(--muted)] uppercase mb-1">Payment Status</label>
-                   <select className="w-full text-sm" value={quest.paymentStatus || 'Pending'} onChange={e => handleUpdateField('paymentStatus', e.target.value)}>
-                     <option>Pending</option><option>Approved</option><option>Paid</option><option>Rejected</option>
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Rank Requirement</label>
+                   <select className="text-sm font-medium" value={quest.requiredRank || 'Applicant'} onChange={e => handleUpdateField('requiredRank', e.target.value)}>
+                     <option>Applicant</option><option>F</option><option>E</option><option>D</option><option>C</option><option>B</option><option>A</option><option>S</option>
                    </select>
-                 </div>
-               </>
+                </div>
+              </div>
+            </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Source & Links" icon={<Building className="w-5 h-5" />} accent="sky">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Partner Entity</label>
+                    <input className="text-sm font-medium" value={quest.sourceName || ''} onChange={e => setQuest({...quest, sourceName: e.target.value})} onBlur={e => handleUpdateField('sourceName', e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Deployment Zone</label>
+                    <p className="text-sm font-semibold flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-rose-500" /> {linkedNeed?.location || 'National'}
+                    </p>
+                  </div>
+               </div>
+               <div className="space-y-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Federation Traces</p>
+                  {linkedNeed && (
+                    <div className="p-3 rounded-xl bg-[var(--bg)] border border-[var(--border)] flex justify-between items-center group/link hover:border-sky-500 transition-all cursor-pointer" onClick={() => navigate(`/needs/${linkedNeed.id}`)}>
+                      <div className="flex items-center gap-3">
+                        <Flag className="w-4 h-4 text-sky-500" />
+                        <span className="text-xs font-bold truncate max-w-[140px]">{linkedNeed.title}</span>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover/link:text-sky-500" />
+                    </div>
+                  )}
+                  {linkedOpp && (
+                    <div className="p-3 rounded-xl bg-[var(--bg)] border border-[var(--border)] flex justify-between items-center group/link hover:border-emerald-500 transition-all cursor-pointer" onClick={() => navigate(`/opportunities/${linkedOpp.id}`)}>
+                      <div className="flex items-center gap-3">
+                        <Target className="w-4 h-4 text-emerald-500" />
+                        <span className="text-xs font-bold truncate max-w-[140px]">{linkedOpp.title}</span>
+                      </div>
+                      <ExternalLink className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover/link:text-emerald-500" />
+                    </div>
+                  )}
+               </div>
+             </div>
+          </CollapsibleSection>
+
+          <CollapsibleSection title="Verification & Submissions" icon={<ShieldCheck className="w-5 h-5" />} accent="purple">
+             <div className="space-y-8">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Verification Depth</label>
+                    <select className="text-sm font-medium" value={quest.verificationLevel || 'Receptionist Verified'} onChange={e => handleUpdateField('verificationLevel', e.target.value)}>
+                      <option>Self Verified</option><option>Receptionist Verified</option><option>Manager Verified</option><option>External Verified</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Review Protocol</label>
+                    <select className="text-sm font-medium" value={quest.verificationMethod || 'manualReview'} onChange={e => handleUpdateField('verificationMethod', e.target.value)}>
+                      <option value="reportReview">Report Review</option><option value="documentUpload">Document Upload</option><option value="manualReview">Manual Review</option>
+                    </select>
+                  </div>
+               </div>
+
+               <div className="space-y-4">
+                 <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">Member Submissions</h4>
+                 {submissions.map(sub => (
+                   <div key={sub.id} className="p-4 rounded-2xl bg-[var(--bg)] border border-[var(--border)] hover:border-purple-500/40 transition-all group/sub cursor-pointer" onClick={() => navigate(`/submissions/${sub.id}`)}>
+                      <div className="flex justify-between items-start mb-3">
+                         <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500 text-[10px] font-bold">
+                             {sub.memberId.charAt(0).toUpperCase()}
+                           </div>
+                           <div>
+                             <p className="text-xs font-bold">Member Submission</p>
+                             <p className="text-[9px] font-mono text-[var(--text-muted)]">{sub.id.slice(0, 12)}</p>
+                           </div>
+                         </div>
+                         <StatusBadge status={sub.status} />
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] italic line-clamp-1 mb-2">&quot;{sub.report}&quot;</p>
+                      <button className="w-full py-1.5 text-[10px] font-bold text-purple-500 uppercase tracking-widest opacity-0 group-hover/sub:opacity-100 transition-opacity">
+                         Enter Review Chamber &rarr;
+                      </button>
+                   </div>
+                 ))}
+                 {submissions.length === 0 && (
+                   <div className="py-10 text-center rounded-xl bg-[var(--bg)] border border-dashed border-[var(--border)]">
+                      <p className="text-xs text-[var(--text-muted)]">No active submissions awaiting review.</p>
+                   </div>
+                 )}
+               </div>
+             </div>
+          </CollapsibleSection>
+        </div>
+
+        <aside className="space-y-8">
+          {/* Workflow Health */}
+          {quest.missingActions && quest.missingActions.length > 0 && (
+            <section className="panel bg-rose-500/5 border-rose-500/20">
+               <div className="flex items-center gap-2 mb-4">
+                 <AlertCircle className="w-4 h-4 text-rose-500" />
+                 <h3 className="text-sm font-bold uppercase tracking-wider text-rose-500/80">Missing Protocols</h3>
+               </div>
+               <ul className="space-y-2">
+                 {quest.missingActions.map(action => (
+                   <li key={action} className="text-xs font-medium text-rose-500/90 flex items-start gap-2">
+                     <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1 shrink-0" />
+                     {action}
+                   </li>
+                 ))}
+               </ul>
+            </section>
+          )}
+
+          {/* Personnel Management */}
+          <section className="panel p-6 border-sky-500/20 bg-sky-500/5">
+             <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <UserPlus className="w-5 h-5 text-sky-500" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-sky-600">Personnel</h2>
+                </div>
+                <StatusBadge status="Active Unit" className="!bg-sky-500/20 !text-sky-500 !border-none !text-[9px]" />
+             </div>
+
+             {profile?.role === 'receptionist' && (
+               <div className="mb-6 space-y-4">
+                  <MemberSearch onSelect={handleAssignMember} />
+                  
+                  {quest.applicants && quest.applicants.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-bold uppercase text-sky-600 tracking-widest">Pending Applications</p>
+                      {quest.applicants.map(uid => (
+                        <div key={uid} className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg)] border border-sky-500/20">
+                          <span className="text-[11px] font-mono text-sky-600">{uid.slice(0, 12)}...</span>
+                          <button className="primary !py-1 !px-3 !text-[9px] !rounded-md" onClick={() => handleAcceptApplicant(uid)}>Enlist</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+               </div>
              )}
 
-             <div className="col-span-full mt-4 border-t border-[var(--border)] pt-4"><h4 className="text-sm font-bold mb-2">Financial Breakdown</h4></div>
-             
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Estimated Value</label>
-               <input type="number" className="w-full text-sm" value={quest.estimatedValue || 0} onChange={e => handleUpdateField('estimatedValue', Number(e.target.value))} />
+             <div className="space-y-2">
+               {quest.assignedMembers?.map(uid => (
+                 <div key={uid} className="p-3 rounded-xl bg-[var(--bg)] border border-[var(--border)] flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-500 text-[10px] font-bold">
+                      {uid.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-[11px] font-mono text-[var(--text-secondary)]">{uid.slice(0, 18)}...</span>
+                 </div>
+               ))}
+               {(!quest.assignedMembers || quest.assignedMembers.length === 0) && (
+                 <p className="text-xs text-[var(--text-muted)] text-center py-4 italic">No personnel deployed.</p>
+               )}
              </div>
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Expected Guild Revenue</label>
-               <input type="number" className="w-full text-sm" value={quest.guildRevenue || 0} onChange={e => handleUpdateField('guildRevenue', Number(e.target.value))} />
-             </div>
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Expected Member Payout</label>
-               <input type="number" className="w-full text-sm" value={quest.memberPayout || 0} onChange={e => handleUpdateField('memberPayout', Number(e.target.value))} />
-             </div>
-             
-             <div className="col-span-full mt-4 border-t border-[var(--border)] pt-4">
-                <h4 className="font-bold text-sm mb-2">Logged Revenue Events</h4>
-                {revenue.map(rev => (
-                  <div key={rev.id} className="flex justify-between items-center bg-[var(--bg-alt)] border border-[var(--border)] rounded p-2 mb-2 text-sm">
-                     <span>{rev.source}</span>
-                     <span className="font-bold text-green-400">₹{rev.amount}</span>
-                  </div>
-                ))}
-                {revenue.length === 0 && <p className="text-sm text-[var(--muted)]">No revenue logged yet.</p>}
-             </div>
-          </div>
-        </CollapsibleSection>
+          </section>
 
-        <CollapsibleSection title="5. Member Assignment" icon={<Users size={18}/>}>
-          {profile?.role === 'receptionist' && (
-            <>
-              <div className="mb-4">
-                 <label className="block text-xs text-[var(--muted)] uppercase mb-1">Add Member to Quest</label>
-                 <MemberSearch onSelect={handleAssignMember} />
-              </div>
-              
-              {quest.applicants && quest.applicants.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-bold mb-2 text-blue-400 uppercase tracking-tight">Pending Applicants</h4>
-                  <div className="space-y-2">
-                    {quest.applicants.map(uid => (
-                      <div key={uid} className="flex justify-between items-center p-2 bg-blue-900/10 border border-blue-500/30 rounded">
-                        <span className="text-sm font-mono">{uid}</span>
-                        <button className="primary text-xs px-2 py-1" onClick={() => handleAcceptApplicant(uid)}>Accept</button>
+          {/* Audit History */}
+          <section className="panel p-6">
+             <div className="flex items-center gap-3 mb-6">
+               <History className="w-5 h-5 text-[var(--primary)]" />
+               <h2 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Ledger Trace</h2>
+             </div>
+             
+             <div className="space-y-4">
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-[var(--text-muted)]">Deployed</span>
+                  <span className="font-mono text-[var(--text-secondary)]">{quest.createdAt ? new Date(quest.createdAt).toLocaleDateString() : 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-[var(--text-muted)]">Last Pulse</span>
+                  <span className="font-mono text-[var(--text-secondary)]">{quest.updatedAt ? new Date(quest.updatedAt).toLocaleDateString() : 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center text-[11px]">
+                  <span className="text-[var(--text-muted)]">Operator ID</span>
+                  <span className="font-mono text-[var(--text-secondary)]">{quest.assignedReceptionistId?.slice(0, 8) || 'AUTO'}</span>
+                </div>
+                
+                {quest.timeline && (
+                  <div className="pt-4 mt-4 border-t border-[var(--border)] space-y-3">
+                    {Object.entries(quest.timeline).slice(0, 3).map(([event, time]) => (
+                      <div key={event} className="flex justify-between items-center text-[10px]">
+                        <span className="text-[var(--text-muted)] capitalize">{event.replace(/([A-Z])/g, ' $1').trim()}</span>
+                        <span className="font-mono text-emerald-500">{new Date(time).toLocaleDateString()}</span>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-            </>
-          )}
-          <div>
-            <h4 className="text-sm font-bold mb-2 uppercase tracking-tight">Assigned Members</h4>
-            <div className="space-y-2">
-              {quest.assignedMembers?.map(uid => (
-                <div key={uid} className="flex justify-between items-center p-2 bg-[var(--bg-alt)] border border-[var(--border)] rounded">
-                  <span className="text-sm font-mono">{uid}</span>
-                  <StatusBadge status="Assigned" />
-                </div>
-              ))}
-              {(!quest.assignedMembers || quest.assignedMembers.length === 0) && <p className="text-sm text-[var(--muted)]">No members assigned.</p>}
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="6. Verification" icon={<ShieldCheck size={18}/>}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Verification Level</label>
-               <select className="w-full text-sm" value={quest.verificationLevel || 'Receptionist Verified'} onChange={e => handleUpdateField('verificationLevel', e.target.value)}>
-                 <option>Self Verified</option><option>Receptionist Verified</option><option>Manager Verified</option><option>External Verified</option>
-               </select>
+                )}
              </div>
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Verification Method</label>
-               <select className="w-full text-sm" value={quest.verificationMethod || 'manualReview'} onChange={e => handleUpdateField('verificationMethod', e.target.value)}>
-                 <option value="reportReview">Report Review</option><option value="documentUpload">Document Upload</option><option value="manualReview">Manual Review</option>
-               </select>
-             </div>
-          </div>
-          <div className="mt-6 border-t border-[var(--border)] pt-4">
-            <h4 className="text-sm font-bold mb-2">Submissions</h4>
-            {submissions.map(sub => (
-              <div key={sub.id} className="border border-gray-700 p-4 rounded bg-gray-800 mb-2">
-                <div className="flex justify-between mb-2">
-                  <strong>Member: {sub.memberId}</strong>
-                  <StatusBadge status={sub.status} />
-                </div>
-                {sub.report && <p className="text-sm italic mb-2">&quot;{sub.report}&quot;</p>}
-                <button className="ghost text-xs" onClick={() => navigate(`/submissions/${sub.id}`)}>Review Submission &rarr;</button>
-              </div>
-            ))}
-            {submissions.length === 0 && <p className="text-sm text-[var(--muted)]">No submissions yet.</p>}
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="7. Outcome" icon={<MapPin size={18}/>}>
-          <div className="grid grid-cols-1 gap-4">
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Expected Outcome</label>
-               <textarea className="w-full text-sm" rows={2} value={quest.expectedOutcome || ''} onChange={e => setQuest({...quest, expectedOutcome: e.target.value})} onBlur={e => handleUpdateField('expectedOutcome', e.target.value)} />
-             </div>
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Actual Outcome</label>
-               <textarea className="w-full text-sm" rows={2} value={quest.actualOutcome || ''} onChange={e => setQuest({...quest, actualOutcome: e.target.value})} onBlur={e => handleUpdateField('actualOutcome', e.target.value)} />
-             </div>
-             <div className="md:w-1/2">
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Outcome Status</label>
-               <select className="w-full text-sm" value={quest.outcomeStatus || ''} onChange={e => handleUpdateField('outcomeStatus', e.target.value)}>
-                 <option value="">Pending</option><option>Success</option><option>Partial Success</option><option>Failed</option>
-               </select>
-             </div>
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Impact Summary</label>
-               <textarea className="w-full text-sm" rows={3} value={quest.impactSummary || ''} onChange={e => setQuest({...quest, impactSummary: e.target.value})} onBlur={e => handleUpdateField('impactSummary', e.target.value)} />
-             </div>
-          </div>
-          
-          <div className="mt-6 border-t border-[var(--border)] pt-4">
-            <h4 className="font-bold text-sm mb-2">Logged Outcomes</h4>
-            {outcomes.map(out => (
-              <div key={out.id} className="flex justify-between items-center bg-[var(--bg-alt)] border border-[var(--border)] rounded p-2 mb-2 text-sm">
-                 <span>{out.title}</span>
-                 <StatusBadge status={out.verificationStatus} />
-              </div>
-            ))}
-            {outcomes.length === 0 && <p className="text-sm text-[var(--muted)]">No formal outcome documented yet.</p>}
-          </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="8. Knowledge" icon={<BookOpen size={18}/>}>
-           <div className="grid grid-cols-1 gap-4">
-             <div className="flex items-center space-x-2 text-sm font-bold">
-               <input type="checkbox" checked={quest.knowledgeRequired || false} onChange={e => handleUpdateField('knowledgeRequired', e.target.checked)} />
-               <span>Knowledge Entry Required for this Quest</span>
-             </div>
-             
-             <div className="border-t border-[var(--border)] pt-4">
-               <h4 className="font-bold text-sm mb-2">Knowledge Entries</h4>
-               {knowledge.map(k => (
-                 <div key={k.id} className="flex justify-between items-center bg-[var(--bg-alt)] border border-[var(--border)] rounded p-2 mb-2 text-sm">
-                    <span>{k.title}</span>
-                    <span className="role-pill">{k.type}</span>
-                 </div>
-               ))}
-               {knowledge.length === 0 && <p className="text-sm text-[var(--muted)]">No knowledge entries submitted.</p>}
-             </div>
-             
-             <div>
-               <label className="block text-xs text-[var(--muted)] uppercase mb-1">Lessons Learned (Direct)</label>
-               <textarea className="w-full text-sm" rows={3} value={quest.lessonsLearned || ''} onChange={e => setQuest({...quest, lessonsLearned: e.target.value})} onBlur={e => handleUpdateField('lessonsLearned', e.target.value)} />
-             </div>
-           </div>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="9. Audit History (Timeline)" icon={<History size={18}/>}>
-          <div className="space-y-4">
-             <div className="flex justify-between items-center text-sm border-b border-[var(--border)] pb-2">
-               <span className="text-[var(--muted)]">Quest Created</span>
-               <span className="font-mono">{quest.createdAt ? new Date(quest.createdAt).toLocaleString() : 'N/A'}</span>
-             </div>
-             <div className="flex justify-between items-center text-sm border-b border-[var(--border)] pb-2">
-               <span className="text-[var(--muted)]">Last Updated</span>
-               <span className="font-mono">{quest.updatedAt ? new Date(quest.updatedAt).toLocaleString() : 'N/A'}</span>
-             </div>
-             <div className="flex justify-between items-center text-sm border-b border-[var(--border)] pb-2">
-               <span className="text-[var(--muted)]">Assigned Receptionist</span>
-               <span className="font-mono">{quest.assignedReceptionistId || 'N/A'}</span>
-             </div>
-             {/* Timeline from the new object if it existed */}
-             {quest.timeline && Object.entries(quest.timeline).map(([event, time]) => (
-               <div key={event} className="flex justify-between items-center text-sm border-b border-[var(--border)] pb-2">
-                 <span className="text-[var(--muted)] capitalize">{event.replace(/([A-Z])/g, ' $1').trim()}</span>
-                 <span className="font-mono">{new Date(time).toLocaleString()}</span>
-               </div>
-             ))}
-          </div>
-        </CollapsibleSection>
-
+          </section>
+        </div>
       </div>
-    </section>
+    </div>
   );
 }

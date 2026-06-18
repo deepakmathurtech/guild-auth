@@ -7,6 +7,7 @@ import type { Opportunity } from '../../types/guild';
 import { OpportunityCreateForm } from './OpportunityCreateForm';
 import { useAuth } from '../../context/AuthContext';
 import { EmptyState } from '../../components/EmptyState';
+import { Plus, Search, Sparkles, Users, IndianRupee, ArrowUpRight, Target } from 'lucide-react';
 
 export function OpportunityListPage() {
   const navigate = useNavigate();
@@ -45,62 +46,133 @@ export function OpportunityListPage() {
   }, [opportunities, search, statusFilter]);
 
   return (
-    <section className="workbench">
-      <div className="panel intro flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <div className="space-y-8 pb-20 animate-fade-up">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <p className="eyebrow">Opportunity Pipeline</p>
-          <h2>Manage Guild Work</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">Turn validated needs into assignable Guild work with skills, value, and member capacity visible.</p>
+          <p className="eyebrow">Work Pipeline</p>
+          <h1>Guild Opportunities</h1>
+          <p className="text-[var(--text-secondary)] max-w-lg">
+            Turn validated needs into assignable work. Match opportunities with skilled guild members.
+          </p>
         </div>
         <button className="primary" onClick={() => setShowCreate(!showCreate)}>
-          {showCreate ? 'Close Form' : 'Create Opportunity'}
+          {showCreate ? 'Close Portal' : <><Plus className="w-4 h-4" /> Create Opportunity</>}
         </button>
       </div>
 
       {showCreate && (
-        <OpportunityCreateForm 
-          initialData={location.state}
-          onSuccess={() => { setShowCreate(false); navigate('.', { replace: true, state: {} }); }} 
-          onCancel={() => setShowCreate(false)} 
-        />
+        <div className="animate-in slide-in-from-top-4 duration-300">
+          <OpportunityCreateForm 
+            initialData={location.state}
+            onSuccess={() => { setShowCreate(false); navigate('.', { replace: true, state: {} }); }} 
+            onCancel={() => setShowCreate(false)} 
+          />
+        </div>
       )}
 
-      <div className="panel">
-        <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <input className="search flex-1" placeholder="Search title or organization..." value={search} onChange={e => setSearch(e.target.value)} />
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-            <option value="">All Statuses</option>
-            <option>draft</option><option>open</option><option>matching</option><option>assigned</option><option>inProgress</option><option>completed</option>
-          </select>
+      <div className="space-y-4">
+        {/* Filter Bar */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+            <input 
+              className="pl-10" 
+              placeholder="Search by title or organization..." 
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+            />
+          </div>
+          <div className="flex gap-4">
+            <select 
+              value={statusFilter} 
+              onChange={e => setStatusFilter(e.target.value)}
+              className="md:w-48"
+            >
+              <option value="">All Statuses</option>
+              <option>draft</option>
+              <option>open</option>
+              <option>matching</option>
+              <option>assigned</option>
+              <option>inProgress</option>
+              <option>completed</option>
+            </select>
+          </div>
         </div>
 
+        {/* List View */}
         <div className="table-wrap">
           <table className="responsive-table">
             <thead>
-              <tr><th>Title</th><th>Category</th><th>Assigned</th><th>Status</th><th>Value</th><th>Actions</th></tr>
+              <tr>
+                <th className="pl-6">Opportunity Title</th>
+                <th>Classification</th>
+                <th>Personnel</th>
+                <th>Status</th>
+                <th>Est. Revenue</th>
+                <th className="pr-6 text-right">Action</th>
+              </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[var(--border)]">
               {visible.map(opp => (
-                <tr key={opp.id}>
-                  <td data-label="Title"><strong>{opp.title}</strong></td>
-                  <td data-label="Category">{opp.category}</td>
-                  <td data-label="Assigned">{opp.assignedMembers?.length || 0} Members</td>
-                  <td data-label="Status"><StatusBadge status={opp.status} /></td>
-                  <td data-label="Value">INR {Number(opp.estimatedRevenue || 0).toLocaleString('en-IN')}</td>
-                  <td data-label="Actions">
-                    <button className="primary text-[10px] px-3 py-1.5" onClick={() => navigate(`/opportunities/${opp.id}`)}>Manage</button>
+                <tr key={opp.id} className="hover:bg-[var(--card-subtle)]/50 transition-all group">
+                  <td className="pl-6 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--card-subtle)] flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--primary)] transition-colors">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm text-[var(--text)]">{opp.title}</p>
+                        <p className="text-xs text-[var(--text-muted)]">{opp.organizationName}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="role-pill">{opp.category}</span>
+                  </td>
+                  <td>
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] font-medium">
+                      <Users className="w-3.5 h-3.5" />
+                      {opp.assignedMembers?.length || 0} Members
+                    </div>
+                  </td>
+                  <td>
+                    <StatusBadge status={opp.status} />
+                  </td>
+                  <td>
+                    <p className="text-sm font-bold text-emerald-500 flex items-center gap-1">
+                      <IndianRupee className="w-3 h-3" /> {Number(opp.estimatedRevenue || 0).toLocaleString('en-IN')}
+                    </p>
+                  </td>
+                  <td className="pr-6 text-right">
+                    <button 
+                      className="secondary !py-2 !px-4 text-xs group-hover:bg-[var(--primary)] group-hover:text-black group-hover:border-[var(--primary)] transition-all" 
+                      onClick={() => navigate(`/opportunities/${opp.id}`)}
+                    >
+                      Manage <ArrowUpRight className="w-3 h-3 ml-1" />
+                    </button>
                   </td>
                 </tr>
               ))}
-              {visible.length === 0 && (
-                <tr>
-                  <td colSpan={6}><EmptyState title="No Opportunities Ready Yet" description="Create an opportunity once a need is clear enough to match with members and convert into quest work." action={<button className="primary" onClick={() => setShowCreate(true)}>Create Opportunity</button>} /></td>
-                </tr>
-              )}
             </tbody>
           </table>
+          
+          {visible.length === 0 && (
+            <div className="p-10 border-t border-[var(--border)]">
+              <EmptyState 
+                title="No Opportunities Found" 
+                description={search || statusFilter ? "No opportunities match your current filters." : "Create an opportunity once a need is clear enough to match with members and convert into quest work."}
+                icon={<Target className="w-8 h-8 opacity-40" />}
+                action={!search && !statusFilter && (
+                  <button className="primary" onClick={() => setShowCreate(true)}>
+                    Create Opportunity
+                  </button>
+                )} 
+              />
+            </div>
+          )}
         </div>
       </div>
-    </section>
+    </div>
   );
 }
+

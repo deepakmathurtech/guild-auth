@@ -1,6 +1,11 @@
 ﻿import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag, IndianRupee, LayoutDashboard, LogOut, Menu, Moon, Shield, Sparkles, Sun, UsersRound, X } from 'lucide-react';
+import { 
+  BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag, 
+  IndianRupee, LayoutDashboard, LogOut, Menu, Moon, Shield, 
+  Sparkles, Sun, UsersRound, X, Search, Bell, Settings,
+  ChevronRight, Command
+} from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useAuth } from '../context/AuthContext';
 import { hasRole, roleLabels } from '../lib/rbac';
@@ -26,9 +31,9 @@ const nav = [
 
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
-    <span className={`brand-mark ${compact ? 'h-8 w-8' : ''}`}>
-      <img src="/guild-logo.png" alt="" className={`${compact ? 'h-6 w-6' : 'h-8 w-8'} object-contain`} />
-    </span>
+    <div className={`flex items-center justify-center rounded-xl bg-black border border-[var(--primary)]/30 ${compact ? 'h-8 w-8' : 'h-10 w-10'}`}>
+      <img src="/guild-logo.png" alt="" className={`${compact ? 'h-5 w-5' : 'h-6 w-6'} object-contain`} />
+    </div>
   );
 }
 
@@ -52,59 +57,106 @@ export function AppShell() {
     groups[item.group] = [...(groups[item.group] || []), item];
     return groups;
   }, {});
+
   const jurisdictionLabel = profile?.jurisdiction.cityName
     ? `${profile.jurisdiction.cityName}, ${profile.jurisdiction.stateName}`
     : 'National Command';
 
   return (
-    <div className="shell">
+    <div className="shell bg-[var(--bg)] text-[var(--text)]">
       <NetworkIndicator />
       
-      <aside className="sidebar hidden md:block">
-        <div className="brand">
+      {/* Sidebar */}
+      <aside className="sidebar hidden md:flex flex-col border-r border-[var(--border)] bg-[var(--bg)]">
+        <div className="flex items-center gap-3 mb-10 px-2">
           <BrandMark />
           <div>
-            <strong className="block leading-tight text-lg">Guild OS</strong>
-            <small className="text-[var(--muted)] font-bold uppercase text-[10px] tracking-[0.18em]">Command Center</small>
+            <strong className="block text-sm font-bold tracking-tight">The Central Guild</strong>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Guild OS</span>
           </div>
         </div>
-        <nav aria-label="Primary navigation">
+
+        <nav className="flex-1 overflow-y-auto space-y-6">
           {Object.entries(groupedNav).map(([group, items]) => (
-            <div key={group} className="mb-4">
-              <p className="px-4 pb-2 text-[10px] font-black uppercase tracking-[0.24em] text-[var(--muted)]">{group}</p>
-              <div className="grid gap-1.5">
+            <div key={group}>
+              <p className="px-4 mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)] opacity-60">
+                {group}
+              </p>
+              <div className="space-y-0.5">
                 {items.map((item) => {
                   const Icon = item.icon;
-                  return <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => isActive ? 'active' : ''}><Icon size={19} aria-hidden="true" />{item.label}</NavLink>;
+                  return (
+                    <NavLink 
+                      key={item.to} 
+                      to={item.to} 
+                      end={item.to === '/'} 
+                      className={({ isActive }) => `
+                        flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition-all
+                        ${isActive 
+                          ? 'bg-[var(--card-subtle)] text-[var(--text)] ring-1 ring-[var(--border-light)] shadow-sm' 
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--card-subtle)]/50'}
+                      `}
+                    >
+                      <Icon className={`w-4 h-4 ${item.to === window.location.pathname ? 'text-[var(--primary)]' : ''}`} />
+                      {item.label}
+                    </NavLink>
+                  );
                 })}
               </div>
             </div>
           ))}
         </nav>
+
+        <div className="mt-auto pt-6 border-t border-[var(--border)] px-2">
+          <div className="flex items-center gap-3 p-2 rounded-xl bg-[var(--card-subtle)]/50 mb-4">
+            <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] text-xs font-bold">
+              {profile?.fullName.charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold truncate">{profile?.fullName}</p>
+              <p className="text-[10px] text-[var(--text-muted)] truncate">{profile?.role ? roleLabels[profile.role] : 'Member'}</p>
+            </div>
+            <button onClick={handleLogout} className="text-[var(--text-muted)] hover:text-[var(--error)] transition-colors">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </aside>
 
+      {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-[var(--bg)] md:hidden flex flex-col p-6">
+        <div className="fixed inset-0 z-50 bg-[var(--bg)] md:hidden flex flex-col p-6 animate-in fade-in duration-200">
            <div className="flex justify-between items-center mb-10">
               <div className="flex gap-4 items-center">
                 <BrandMark />
                 <div>
-                  <strong className="block">Guild OS</strong>
-                  <span className="text-xs text-[var(--muted)]">{jurisdictionLabel}</span>
+                  <strong className="block font-bold">The Central Guild</strong>
+                  <span className="text-xs text-[var(--text-muted)]">{jurisdictionLabel}</span>
                 </div>
               </div>
-              <button className="ghost p-2" aria-label="Close navigation" onClick={() => setIsMobileMenuOpen(false)}><X size={24}/></button>
+              <button className="p-2 bg-[var(--card-subtle)] rounded-xl" onClick={() => setIsMobileMenuOpen(false)}>
+                <X className="w-6 h-6"/>
+              </button>
            </div>
-           <nav className="grid gap-5 overflow-y-auto" aria-label="Mobile navigation">
+           <nav className="flex-1 overflow-y-auto space-y-8 pb-10">
               {Object.entries(groupedNav).map(([group, items]) => (
                 <div key={group}>
-                  <p className="mb-2 px-4 text-[10px] font-black uppercase tracking-[0.24em] text-[var(--muted)]">{group}</p>
+                  <p className="mb-3 px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)]">{group}</p>
                   <div className="grid gap-2">
                     {items.map((item) => {
                       const Icon = item.icon;
                       return (
-                        <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setIsMobileMenuOpen(false)} className={({isActive}) => `flex gap-4 items-center px-4 py-4 rounded-2xl font-bold ${isActive ? 'bg-[#17120b] text-[#f8d987]' : 'bg-[var(--card)] text-[var(--muted)] border border-[var(--border)]'}`}>
-                          <Icon size={22} aria-hidden="true" />
+                        <NavLink 
+                          key={item.to} 
+                          to={item.to} 
+                          end={item.to === '/'} 
+                          onClick={() => setIsMobileMenuOpen(false)} 
+                          className={({isActive}) => `
+                            flex gap-4 items-center px-4 py-3.5 rounded-2xl font-semibold text-sm transition-all
+                            ${isActive ? 'bg-[var(--primary)] text-black shadow-lg shadow-[var(--primary)]/20' : 'bg-[var(--card-subtle)] text-[var(--text-secondary)] border border-[var(--border)]'}
+                          `}
+                        >
+                          <Icon className="w-5 h-5" />
                           <span>{item.label}</span>
                         </NavLink>
                       );
@@ -113,45 +165,76 @@ export function AppShell() {
                 </div>
               ))}
            </nav>
-           <div className="mt-auto pt-6 border-t border-[var(--border)]">
-              <button className="danger w-full py-4" onClick={handleLogout}><LogOut size={20} /> Logout</button>
-           </div>
+           <button className="w-full py-4 rounded-2xl bg-[var(--error)]/10 text-[var(--error)] font-bold flex items-center justify-center gap-2" onClick={handleLogout}>
+            <LogOut className="w-5 h-5" /> Logout
+           </button>
         </div>
       )}
 
-      <main className="main">
-        <header className="topbar">
+      {/* Main Content */}
+      <main className="main flex flex-col h-screen overflow-hidden">
+        {/* Topbar */}
+        <header className="flex items-center justify-between h-16 mb-8 shrink-0">
           <div className="hidden md:block">
-            <p className="eyebrow">Federation Operational Integrity: High</p>
-            <h1>{jurisdictionLabel}</h1>
-            <p className="mt-1 text-sm text-[var(--muted)]">Focused workspace for today&apos;s intake, quest movement, and verification work.</p>
+            <h1 className="text-xl font-bold tracking-tight">{jurisdictionLabel}</h1>
+            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
+              Operational Integrity: High
+            </div>
           </div>
           
           <div className="md:hidden flex items-center justify-between w-full">
-            <button className="ghost p-2" aria-label="Open navigation" onClick={() => setIsMobileMenuOpen(true)}><Menu size={24} /></button>
+            <button className="p-2 bg-[var(--card-subtle)] rounded-xl" onClick={() => setIsMobileMenuOpen(true)}>
+              <Menu className="w-6 h-6" />
+            </button>
             <div className="flex items-center gap-2">
               <BrandMark compact />
-              <strong>Guild OS</strong>
+              <strong className="text-sm font-bold">Guild OS</strong>
             </div>
             <NotificationCenter />
           </div>
 
-          <div className="top-actions hidden md:flex">
+          <div className="hidden md:flex items-center gap-3">
             <GlobalSearch />
+            <div className="h-6 w-px bg-[var(--border)] mx-2" />
             <NotificationCenter />
-            <button className="ghost" type="button" onClick={toggleTheme} aria-label="Toggle theme">
-              {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />} 
-              <span className="hidden md:inline ml-1">Theme</span>
+            <button 
+              className="p-2.5 bg-[var(--card-subtle)] text-[var(--text-secondary)] hover:text-[var(--text)] rounded-xl transition-all" 
+              onClick={toggleTheme}
+              title="Toggle Theme"
+            >
+              {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <span className="role-pill">{profile?.role ? roleLabels[profile.role] : 'Guest'}</span>
-            <button className="ghost" type="button" onClick={handleLogout}><LogOut size={18} /> Logout</button>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--primary)]/10 border border-[var(--primary)]/20 text-[var(--primary)] text-[10px] font-bold uppercase tracking-wider">
+              <Shield className="w-3 h-3" />
+              {profile?.role ? roleLabels[profile.role] : 'Guest'}
+            </div>
           </div>
         </header>
 
-        <div className="content-area">
-          <Outlet />
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="animate-fade-up">
+            <Outlet />
+          </div>
         </div>
       </main>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: var(--border);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: var(--text-muted);
+        }
+      `}</style>
     </div>
   );
 }

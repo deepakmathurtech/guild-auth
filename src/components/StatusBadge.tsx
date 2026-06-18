@@ -8,21 +8,50 @@ interface Props {
 export function StatusBadge({ status, className = '' }: Props) {
   const norm = status.toLowerCase();
   
-  let colorClass = 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700'; // Default gray
+  let styles = {
+    bg: 'bg-[var(--card-subtle)]',
+    text: 'text-[var(--text-muted)]',
+    border: 'border-[var(--border)]',
+    dot: 'bg-[var(--text-muted)]'
+  };
   
-  if (['completed', 'verified', 'approved', 'partner'].includes(norm)) {
-    colorClass = 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-400 dark:border-green-800';
-  } else if (['active', 'open', 'inprogress', 'assigned'].includes(norm)) {
-    colorClass = 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-400 dark:border-blue-800';
-  } else if (['pending', 'draft', 'matching'].includes(norm)) {
-    colorClass = 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-400 dark:border-yellow-800';
-  } else if (['rejected', 'error'].includes(norm)) {
-    colorClass = 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-400 dark:border-red-800';
+  if (['completed', 'verified', 'approved', 'partner', 'success'].includes(norm)) {
+    styles = {
+      bg: 'bg-emerald-500/10',
+      text: 'text-emerald-500',
+      border: 'border-emerald-500/20',
+      dot: 'bg-emerald-500'
+    };
+  } else if (['active', 'open', 'inprogress', 'assigned', 'matching'].includes(norm)) {
+    styles = {
+      bg: 'bg-sky-500/10',
+      text: 'text-sky-500',
+      border: 'border-sky-500/20',
+      dot: 'bg-sky-500'
+    };
+  } else if (['pending', 'draft', 'review'].includes(norm)) {
+    styles = {
+      bg: 'bg-amber-500/10',
+      text: 'text-amber-500',
+      border: 'border-amber-500/20',
+      dot: 'bg-amber-500'
+    };
+  } else if (['rejected', 'error', 'failed', 'cancelled'].includes(norm)) {
+    styles = {
+      bg: 'bg-rose-500/10',
+      text: 'text-rose-500',
+      border: 'border-rose-500/20',
+      dot: 'bg-rose-500'
+    };
   }
 
+  const showDot = ['active', 'open', 'inprogress', 'assigned', 'matching', 'pending', 'review'].includes(norm);
+
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${colorClass} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${styles.bg} ${styles.text} ${styles.border} ${className}`}>
+      {showDot && <span className={`w-1 h-1 rounded-full ${styles.dot} animate-pulse`} />}
       {status}
     </span>
   );
 }
+

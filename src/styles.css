@@ -1,44 +1,65 @@
 @import "tailwindcss";
 
 @layer base {
-  :root {
-    /* Guild OS: warm command-center palette pulled from guild-web. */
-    --bg: #f7f3ea;
-    --bg-alt: #efe7d8;
+  :root,
+  [data-theme='dark'] {
+    --bg: #0a0a0f;
+    --bg-alt: #121218;
+    --nav-bg: rgba(10, 10, 15, 0.85);
+    --card: #14141d;
+    --card-glass: rgba(20, 20, 29, 0.7);
+    --card-subtle: #1a1a24;
+    --text: #f0ead8;
+    --text-secondary: rgba(240, 234, 216, 0.65);
+    --text-muted: rgba(240, 234, 216, 0.45);
+    --muted: rgba(240, 234, 216, 0.25);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-light: rgba(255, 255, 255, 0.12);
+    --primary: #c8a464;
+    --primary-dark: #a8853e;
+    --accent: #c8a464;
+    --accent-light: #e8c888;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --info: #3b82f6;
+    --input-bg: rgba(255, 255, 255, 0.04);
+    --glow-gold: rgba(200, 164, 100, 0.12);
+    --glow-purple: rgba(120, 80, 200, 0.08);
+    
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+    --radius-2xl: 2rem;
+    
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 8px 32px -8px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 32px 64px -16px rgb(0 0 0 / 0.6);
+  }
+
+  [data-theme='light'] {
+    --bg: #f8f9fa;
+    --bg-alt: #ffffff;
+    --nav-bg: rgba(248, 249, 250, 0.85);
     --card: #ffffff;
-    --card-subtle: #fbf8f1;
-    --text: #17120b;
-    --muted: #746b5d;
-    --border: #ded3bf;
+    --card-glass: rgba(255, 255, 255, 0.7);
+    --card-subtle: #f1f3f5;
+    --text: #1a1a1a;
+    --text-secondary: #4a4a4a;
+    --text-muted: #6c757d;
+    --muted: #adb5bd;
+    --border: #e9ecef;
+    --border-light: #f1f3f5;
     --primary: #9a6a12;
     --primary-dark: #704905;
     --accent: #d9a441;
-    --success: #16794c;
-    --warning: #b7791f;
-    --error: #b42318;
-    --info: #255f85;
-    
-    --radius-sm: 0.375rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    
-    --shadow-sm: 0 1px 2px 0 rgb(23 18 11 / 0.05);
-    --shadow: 0 12px 30px -24px rgb(23 18 11 / 0.35);
-    --shadow-lg: 0 24px 70px -42px rgb(23 18 11 / 0.45);
-  }
+    --input-bg: #f8f9fa;
+    --glow-gold: rgba(154, 106, 18, 0.05);
+    --glow-purple: rgba(120, 80, 200, 0.03);
 
-  :root[data-theme='dark'] {
-    --bg: #070604;
-    --bg-alt: #14100a;
-    --card: #18140d;
-    --card-subtle: #211a10;
-    --text: #f8f1e4;
-    --muted: #b9aa91;
-    --border: #3a2e1d;
-    --primary: #e0aa43;
-    --primary-dark: #f0c76e;
-    --accent: #f3c76f;
+    --shadow: 0 8px 32px -8px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 32px 64px -16px rgb(0 0 0 / 0.15);
   }
 
   html {
@@ -46,12 +67,10 @@
   }
 
   body {
-    background:
-      radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34rem),
-      linear-gradient(135deg, var(--bg) 0%, var(--bg-alt) 100%);
+    background: var(--bg);
     color: var(--text);
     @apply transition-colors duration-200 antialiased;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     min-width: 320px;
   }
 
@@ -60,11 +79,11 @@
   }
 
   button, a, input, textarea, select {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)];
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)];
   }
   
   input, textarea, select {
-    @apply w-full border border-[var(--border)] rounded-xl px-4 py-3 bg-[var(--card)] text-[var(--text)] shadow-sm focus:border-[var(--primary)] transition-all;
+    @apply w-full border border-[var(--border)] rounded-xl px-4 py-3 bg-[var(--input-bg)] text-[var(--text)] shadow-sm focus:border-[var(--primary)] transition-all;
   }
   
   textarea {
@@ -79,26 +98,26 @@
     @apply p-4 border-b border-[var(--border)] text-left align-middle;
   }
   th {
-    @apply font-bold text-[var(--muted)] text-[11px] uppercase tracking-[0.16em];
+    @apply font-semibold text-[var(--text-muted)] text-[11px] uppercase tracking-wider;
   }
 }
 
 @layer components {
   /* Layout Structures */
   .shell {
-    @apply min-h-screen flex flex-col md:grid md:grid-cols-[292px_minmax(0,1fr)];
+    @apply min-h-screen flex flex-col md:grid md:grid-cols-[280px_minmax(0,1fr)];
   }
   
   .sidebar {
-    @apply sticky top-0 h-screen p-5 border-r border-[var(--border)] bg-[var(--card)]/95 z-30 shadow-[8px_0_40px_-36px_rgb(0_0_0_/_0.45)] backdrop-blur;
+    @apply sticky top-0 h-screen p-6 border-r border-[var(--border)] bg-[var(--bg)] z-30 transition-all;
   }
 
   .main {
-    @apply min-w-0 p-4 md:p-8 lg:p-10;
+    @apply min-w-0 p-6 md:p-8 lg:p-12;
   }
   
   .topbar {
-    @apply flex justify-between gap-6 items-center mb-8 rounded-3xl border border-[var(--border)] bg-[var(--card)]/85 px-5 py-4 shadow-sm backdrop-blur;
+    @apply flex justify-between gap-6 items-center mb-10 px-2;
   }
   
   .top-actions {
@@ -106,48 +125,48 @@
   }
 
   .brand {
-    @apply flex gap-4 items-center mb-8 rounded-3xl border border-[var(--border)] bg-[var(--card-subtle)] p-3;
+    @apply flex gap-3 items-center mb-10 px-2;
   }
   
   .brand-mark {
-    @apply w-11 h-11 grid place-items-center overflow-hidden rounded-2xl bg-[#120b05] text-[var(--accent)] font-bold text-2xl shadow-lg shadow-[var(--primary)]/20 ring-1 ring-[var(--accent)]/30;
+    @apply w-10 h-10 grid place-items-center overflow-hidden rounded-xl bg-[var(--primary)] text-black font-bold text-xl shadow-lg;
   }
 
   .sidebar nav {
-    @apply grid gap-1.5;
+    @apply grid gap-1;
   }
   
   .sidebar a {
-    @apply flex gap-3 items-center px-4 py-3 rounded-2xl text-[var(--muted)] hover:bg-[var(--bg-alt)] hover:text-[var(--text)] transition-all duration-200 font-bold text-sm;
+    @apply flex gap-3 items-center px-4 py-2.5 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--card-subtle)] hover:text-[var(--text)] transition-all duration-200 font-medium text-sm;
   }
   
   .sidebar a.active {
-    @apply bg-[#17120b] text-[#f6d88b] shadow-lg shadow-[var(--primary)]/15 ring-1 ring-[var(--accent)]/30;
+    @apply bg-[var(--card-subtle)] text-[var(--text)] font-semibold shadow-sm ring-1 ring-[var(--border-light)];
   }
   
   .sidebar a.active svg {
-    @apply text-white;
+    @apply text-[var(--primary)];
   }
 
   /* Cards & Panels */
   .panel {
-    @apply bg-[var(--card)]/95 border border-[var(--border)] rounded-3xl p-6 shadow-[var(--shadow)] transition-shadow duration-300;
+    @apply bg-[var(--card)] border border-[var(--border)] rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow)] transition-all duration-300;
   }
   
   .hero-panel {
-    @apply bg-[var(--card)] border border-[var(--border)] rounded-[2rem] p-7 md:p-8 shadow-[var(--shadow-lg)] relative overflow-hidden;
+    @apply bg-gradient-to-br from-[var(--card)] to-[var(--bg-alt)] border border-[var(--border)] rounded-[var(--radius-xl)] p-8 md:p-10 shadow-[var(--shadow-lg)] relative overflow-hidden;
   }
 
   .page-grid, .workbench {
-    @apply grid gap-6;
+    @apply grid gap-8;
   }
   
   .form-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+    @apply grid grid-cols-1 md:grid-cols-2 gap-8;
   }
   
   .form-grid label {
-    @apply grid gap-2 text-[var(--text)] font-bold text-sm;
+    @apply grid gap-2 text-[var(--text-secondary)] font-medium text-sm;
   }
   
   .span-2 {
@@ -156,24 +175,28 @@
 
   /* Typography */
   .eyebrow {
-    @apply text-[var(--primary)] uppercase tracking-[0.24em] text-[10px] font-black mb-2;
+    @apply text-[var(--primary)] uppercase tracking-widest text-[10px] font-bold mb-3;
   }
   
-  h1 { @apply text-3xl font-black tracking-tight; }
-  h2 { @apply text-2xl font-bold tracking-tight; }
-  h3 { @apply text-lg font-bold; }
+  h1 { @apply text-4xl font-bold tracking-tight mb-2; }
+  h2 { @apply text-2xl font-semibold tracking-tight; }
+  h3 { @apply text-lg font-semibold; }
 
   /* Buttons */
-  .primary, .ghost, .danger {
-    @apply inline-flex gap-2 items-center justify-center px-5 py-2.5 rounded-2xl font-bold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+  .primary, .ghost, .danger, .secondary {
+    @apply inline-flex gap-2 items-center justify-center px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
   }
   
   .primary {
-    @apply bg-[#17120b] text-[#f8d987] hover:bg-[#2b1e0b] shadow-md hover:shadow-lg shadow-[var(--primary)]/10 ring-1 ring-[var(--accent)]/30;
+    @apply bg-[var(--primary)] text-black hover:bg-[var(--primary-dark)] shadow-sm;
   }
   
   .ghost {
-    @apply bg-[var(--card)] text-[var(--text)] border border-[var(--border)] hover:bg-[var(--bg-alt)];
+    @apply text-[var(--text-secondary)] hover:bg-[var(--card-subtle)] hover:text-[var(--text)];
+  }
+  
+  .secondary {
+    @apply bg-[var(--card-subtle)] text-[var(--text)] border border-[var(--border)] hover:border-[var(--border-light)];
   }
   
   .danger {
@@ -181,19 +204,15 @@
   }
   
   .role-pill {
-    @apply inline-flex px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--bg-alt)] text-[var(--muted)] text-[11px] font-bold uppercase tracking-wider;
-  }
-
-  .secondary {
-    @apply inline-flex gap-2 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--card-subtle)] px-3 py-1.5 font-bold text-[var(--text)] transition hover:bg-[var(--bg-alt)];
+    @apply inline-flex px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--card-subtle)] text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider;
   }
 
   .muted {
-    @apply text-sm text-[var(--muted)];
+    @apply text-sm text-[var(--text-muted)];
   }
 
   .field-help {
-    @apply text-xs font-normal leading-relaxed text-[var(--muted)];
+    @apply text-xs font-normal leading-relaxed text-[var(--text-muted)];
   }
 
   .required::after {
@@ -202,43 +221,43 @@
   }
 
   .metric-card {
-    @apply min-h-32 flex flex-col justify-between rounded-3xl border border-[var(--border)] bg-[var(--card)]/95 p-6 shadow-[var(--shadow)];
+    @apply flex flex-col justify-between rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--card)] p-6 shadow-[var(--shadow)];
   }
 
   .metric-card span {
-    @apply text-xs font-black uppercase tracking-[0.18em] text-[var(--muted)];
+    @apply text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)];
   }
 
   .metric-card strong {
-    @apply text-3xl font-black tracking-tight;
+    @apply text-3xl font-bold tracking-tight mt-2;
   }
 
   .metrics-grid {
-    @apply grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4;
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6;
   }
 
   .records-grid {
-    @apply grid grid-cols-1 lg:grid-cols-2 gap-4;
+    @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
   }
 
   .record-card {
-    @apply grid gap-3 rounded-3xl border border-[var(--border)] bg-[var(--card)]/95 p-6 shadow-[var(--shadow)];
+    @apply grid gap-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--card)] p-6 shadow-[var(--shadow)] hover:border-[var(--border-light)] transition-all;
   }
 
   .record-head {
-    @apply flex items-start justify-between gap-4 border-b border-[var(--border)] pb-3;
+    @apply flex items-start justify-between gap-4 border-b border-[var(--border)] pb-4;
   }
 
   .record-head small {
-    @apply inline-flex shrink-0 rounded-full border border-[var(--border)] bg-[var(--bg-alt)] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)];
+    @apply inline-flex shrink-0 rounded-full border border-[var(--border)] bg-[var(--card-subtle)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)];
   }
 
   .record-card p {
-    @apply grid grid-cols-[140px_minmax(0,1fr)] gap-3 text-sm;
+    @apply grid grid-cols-[120px_minmax(0,1fr)] gap-4 text-sm;
   }
 
   .record-card p span {
-    @apply text-xs font-black uppercase tracking-wider text-[var(--muted)];
+    @apply text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)];
   }
 
   .record-actions {
@@ -246,25 +265,29 @@
   }
 
   .badge {
-    @apply inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-wider;
+    @apply inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider;
   }
 
-  .priority-low { @apply border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300; }
-  .priority-medium { @apply border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300; }
-  .priority-high { @apply border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-300; }
-  .priority-urgent { @apply border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300; }
+  .priority-low { @apply border-blue-200/20 bg-blue-500/10 text-blue-400; }
+  .priority-medium { @apply border-amber-200/20 bg-amber-500/10 text-amber-400; }
+  .priority-high { @apply border-orange-200/20 bg-orange-500/10 text-orange-400; }
+  .priority-urgent { @apply border-red-200/20 bg-red-500/10 text-red-400; }
 
   .empty-state {
-    @apply flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-[var(--border)] bg-[var(--card-subtle)] p-8 text-center;
+    @apply flex flex-col items-center justify-center gap-4 rounded-[var(--radius-lg)] border border-dashed border-[var(--border)] bg-[var(--card-subtle)]/50 p-12 text-center;
   }
 
   .empty-state strong {
-    @apply text-lg;
+    @apply text-xl font-semibold;
+  }
+  
+  .empty-state p {
+    @apply text-[var(--text-muted)] max-w-sm;
   }
 
   /* Responsive Tables */
   .table-wrap {
-    @apply w-full overflow-x-auto rounded-2xl border border-[var(--border)] bg-[var(--card)];
+    @apply w-full overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--card)];
   }
   
   .responsive-table {
@@ -288,14 +311,14 @@
     
     .responsive-table thead { @apply hidden; }
     .responsive-table tr {
-      @apply flex flex-col border-b border-[var(--border)] p-4 bg-[var(--card)] last:border-b-0;
+      @apply flex flex-col border-b border-[var(--border)] p-6 bg-[var(--card)] last:border-b-0;
     }
     .responsive-table td {
       @apply flex justify-between items-start gap-4 py-2 border-b-0 px-0 text-right;
     }
     .responsive-table td::before {
       content: attr(data-label);
-      @apply text-[var(--muted)] text-[10px] uppercase font-black tracking-widest;
+      @apply text-[var(--text-muted)] text-[10px] uppercase font-bold tracking-widest;
     }
   }
 
@@ -303,9 +326,19 @@
   .animate-pulse-slow {
     animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+  
+  .animate-fade-up {
+    animation: fadeUp 0.6s ease-out backwards;
+  }
 }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.8; }
 }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+

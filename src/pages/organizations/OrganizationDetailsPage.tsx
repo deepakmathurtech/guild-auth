@@ -5,7 +5,12 @@ import { useAuth } from '../../context/AuthContext';
 import type { Organization, Quest, InteractionRecord, GuildUser } from '../../types/guild';
 import { StatusBadge } from '../../components/StatusBadge';
 import { where, orderBy, limit } from 'firebase/firestore';
-import { Phone, Mail, MapPin, User, History, MessageSquare, Plus, ArrowLeftRight, Save } from 'lucide-react';
+import { 
+  Phone, Mail, MapPin, User, History, 
+  MessageSquare, Plus, ArrowLeftRight, Save,
+  ChevronLeft, ExternalLink, Shield, Globe,
+  MoreVertical, Calendar, UserPlus
+} from 'lucide-react';
 
 export function OrganizationDetailsPage() {
   const { id } = useParams();
@@ -51,132 +56,261 @@ export function OrganizationDetailsPage() {
     setIsTransferringOwnership(false);
   }
 
-  if (!org) return <div className="p-10 text-center font-bold">Accessing Organization Ledger...</div>;
+  if (!org) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="w-10 h-10 border-2 rounded-full animate-spin border-[var(--muted)] border-t-[var(--primary)]" />
+    </div>
+  );
+
+  const owner = receptionists.find(r => r.uid === (org.ownerId || org.responsibleReceptionist));
 
   return (
-    <div className="workbench max-w-6xl mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div>
-          <button className="ghost px-2 py-1 mb-4 flex items-center gap-1 text-xs" onClick={() => navigate('/organizations')}><Phone className="rotate-90" size={12}/> Back to Directory</button>
-          <p className="eyebrow">{org.category} &middot; Trust Level: {org.trustLevel}</p>
-          <h1 className="text-4xl">{org.name}</h1>
-          <div className="flex gap-2 mt-4">
-             <StatusBadge status={org.currentStatus} />
-             <span className="role-pill flex items-center gap-1"><User size={12}/> Owner: {receptionists.find(r => r.uid === (org.ownerId || org.responsibleReceptionist))?.fullName || 'Unassigned'}</span>
+    <div className="space-y-10 pb-20 animate-fade-up">
+      {/* Premium Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+        <div className="space-y-4">
+          <button 
+            className="group flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors" 
+            onClick={() => navigate('/organizations')}
+          >
+            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
+            Organizations Directory
+          </button>
+          
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="role-pill !bg-emerald-500/10 !text-emerald-500 !border-emerald-500/20">
+                {org.category}
+              </span>
+              <div className="flex items-center gap-1 text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                <Star className="w-3 h-3 fill-current" /> Trust: {org.trustLevel}
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{org.name}</h1>
+            <div className="flex flex-wrap gap-4 items-center">
+              <StatusBadge status={org.currentStatus} />
+              <div className="h-4 w-px bg-[var(--border)]" />
+              <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                <div className="w-6 h-6 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] text-[10px] font-bold">
+                  {owner?.fullName.charAt(0) || 'U'}
+                </div>
+                <span className="font-medium">Account Owner: {owner?.fullName || 'Unassigned'}</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <button className="primary flex-1 md:flex-none" onClick={() => setIsLoggingInteraction(true)}><Plus size={18}/> Log Interaction</button>
-          {profile?.role === 'guildFounder' && (
-            <button className="ghost flex-1 md:flex-none" onClick={() => setIsTransferringOwnership(!isTransferringOwnership)}><ArrowLeftRight size={18}/> Transfer</button>
+
+        <div className="flex gap-3 w-full md:w-auto">
+          <button className="secondary flex-1 md:flex-none" onClick={() => setIsLoggingInteraction(true)}>
+            <MessageSquare className="w-4 h-4" /> Log Note
+          </button>
+          {['guildFounder', 'founder', 'centralGuildMaster'].includes(profile?.role || '') && (
+            <button className="secondary flex-1 md:flex-none" onClick={() => setIsTransferringOwnership(!isTransferringOwnership)}>
+              <UserPlus className="w-4 h-4" /> Transfer
+            </button>
           )}
+          <button className="primary flex-1 md:flex-none" onClick={() => navigate('/needs', { state: { orgId: org.id, orgName: org.name, showCreate: true } })}>
+            <Plus className="w-4 h-4" /> New Need
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <div className="panel">
-            <h3 className="flex items-center gap-2 mb-6"><History size={20} className="text-[var(--primary)]"/> Relationship Timeline</h3>
-            <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
+        {/* Relationship Timeline */}
+        <div className="space-y-8">
+          <section className="panel">
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center gap-3">
+                <History className="w-5 h-5 text-[var(--primary)]" />
+                <h2 className="text-xl font-bold tracking-tight">Relationship Timeline</h2>
+              </div>
+              <StatusBadge status="History" className="!bg-[var(--card-subtle)]" />
+            </div>
+
+            <div className="space-y-8 relative">
               {isLoggingInteraction && (
-                <form className="bg-[var(--bg-alt)] p-4 rounded-2xl border border-[var(--primary)]/30 animate-in zoom-in-95" onSubmit={handleLogInteraction}>
-                  <div className="flex gap-2 mb-4">
-                    {['call', 'meeting', 'visit', 'note'].map(type => (
-                      <button key={type} type="button" onClick={() => setInteractionForm({...interactionForm, type: type as any})} className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${interactionForm.type === type ? 'bg-[var(--primary)] text-white' : 'bg-white text-[var(--muted)] border border-[var(--border)]'}`}>{type}</button>
-                    ))}
-                  </div>
-                  <textarea className="mb-4" placeholder="What happened? Log key outcomes and next steps..." required value={interactionForm.summary} onChange={e => setInteractionForm({...interactionForm, summary: e.target.value})} />
-                  <div className="flex justify-end gap-2">
-                    <button className="ghost text-xs" type="button" onClick={() => setIsLoggingInteraction(false)}>Cancel</button>
-                    <button className="primary text-xs" type="submit">Log in History</button>
-                  </div>
-                </form>
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                  <form className="p-6 rounded-2xl bg-[var(--card-subtle)] border border-[var(--primary)]/30" onSubmit={handleLogInteraction}>
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {['call', 'meeting', 'visit', 'note'].map(type => (
+                        <button 
+                          key={type} 
+                          type="button" 
+                          onClick={() => setInteractionForm({...interactionForm, type: type as any})} 
+                          className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${interactionForm.type === type ? 'bg-[var(--primary)] text-black' : 'bg-[var(--bg)] text-[var(--text-muted)] border border-[var(--border)] hover:border-[var(--text-muted)]'}`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea 
+                      className="mb-4 bg-[var(--bg)] border-[var(--border)] text-sm" 
+                      placeholder="Record the key outcomes of this interaction..." 
+                      required 
+                      rows={4}
+                      value={interactionForm.summary} 
+                      onChange={e => setInteractionForm({...interactionForm, summary: e.target.value})} 
+                    />
+                    <div className="flex justify-end gap-3">
+                      <button className="ghost !py-2 text-xs" type="button" onClick={() => setIsLoggingInteraction(false)}>Cancel</button>
+                      <button className="primary !py-2 text-xs" type="submit">Finalize Entry</button>
+                    </div>
+                  </form>
+                </div>
               )}
 
               {isTransferringOwnership && (
-                <div className="bg-purple-500/10 p-4 rounded-2xl border border-purple-500/30">
-                  <h4 className="text-sm font-bold mb-3">Transfer Responsibility</h4>
-                  <div className="grid gap-2">
-                    {receptionists.map(r => (
-                      <button key={r.uid} className="flex justify-between items-center p-3 bg-white rounded-xl text-sm hover:border-purple-500 border border-transparent transition-all" onClick={() => handleTransferOwnership(r.uid)}>
-                        <span>{r.fullName}</span>
-                        <span className="text-[10px] font-bold text-purple-500 uppercase tracking-widest">{r.role}</span>
-                      </button>
-                    ))}
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="p-6 rounded-2xl bg-purple-500/5 border border-purple-500/20">
+                    <h4 className="text-sm font-bold mb-4">Transfer Account Responsibility</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {receptionists.map(r => (
+                        <button 
+                          key={r.uid} 
+                          className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg)] border border-[var(--border)] hover:border-purple-500 transition-all text-left" 
+                          onClick={() => handleTransferOwnership(r.uid)}
+                        >
+                          <div>
+                            <p className="text-sm font-bold">{r.fullName}</p>
+                            <p className="text-[9px] uppercase font-bold text-[var(--text-muted)]">{r.role}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <button className="w-full mt-4 ghost !py-2 text-xs" onClick={() => setIsTransferringOwnership(false)}>Cancel</button>
                   </div>
                 </div>
               )}
 
-              {interactions.map((interaction, i) => (
-                <div key={interaction.id} className="relative pl-8 before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-[-24px] before:w-[2px] before:bg-[var(--border)] last:before:hidden">
-                  <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-white border-2 border-[var(--primary)] grid place-items-center">
-                    <MessageSquare size={12} className="text-[var(--primary)]" />
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl border border-[var(--border)] shadow-sm">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--muted)]">{interaction.type} &middot; {new Date(interaction.createdAt).toLocaleString()}</span>
-                      <span className="text-[10px] font-bold text-[var(--primary)]">{receptionists.find(r => r.uid === interaction.createdBy)?.fullName}</span>
+              <div className="space-y-10">
+                {interactions.map((interaction, i) => (
+                  <div key={interaction.id} className="relative pl-10">
+                    {/* Vertical Line */}
+                    {i !== interactions.length - 1 && (
+                      <div className="absolute left-[11px] top-8 bottom-[-40px] w-0.5 bg-[var(--border)]" />
+                    )}
+                    
+                    <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-[var(--bg)] border-2 border-[var(--primary)] flex items-center justify-center z-10 shadow-sm">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]" />
                     </div>
-                    <p className="text-sm leading-relaxed">{interaction.summary}</p>
+
+                    <div className="group">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+                            {interaction.type}
+                          </span>
+                          <div className="w-1 h-1 rounded-full bg-[var(--border)]" />
+                          <span className="text-[10px] font-medium text-[var(--text-muted)]">
+                            {new Date(interaction.createdAt).toLocaleDateString()} at {new Date(interaction.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-0.5 rounded border border-[var(--primary)]/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {receptionists.find(r => r.uid === interaction.createdBy)?.fullName}
+                        </span>
+                      </div>
+                      <div className="p-5 rounded-2xl bg-[var(--card-subtle)]/50 border border-[var(--border)] group-hover:border-[var(--border-light)] transition-all">
+                        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{interaction.summary}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+                {interactions.length === 0 && !isLoggingInteraction && (
+                  <div className="py-20 text-center">
+                    <p className="text-[var(--text-muted)] text-sm italic">No interactions recorded for this organization.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </section>
         </div>
 
-        <div className="space-y-8">
-          <div className="panel">
-            <h3 className="mb-6">Contact Record</h3>
-            <div className="grid gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 grid place-items-center text-slate-500"><User size={20}/></div>
+        {/* Sidebar Info */}
+        <aside className="space-y-8">
+          <section className="panel p-6">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-6 flex items-center gap-2">
+              <Globe className="w-3.5 h-3.5" /> Corporate Dossier
+            </h3>
+            
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)]">
+                  <User className="w-5 h-5" />
+                </div>
                 <div>
-                  <span className="block text-xs font-bold text-[var(--muted)]">Primary Contact</span>
-                  <span className="text-sm font-bold">{org.contactPerson}</span>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Primary Liaison</p>
+                  <p className="text-sm font-bold text-[var(--text)]">{org.contactPerson}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 grid place-items-center text-slate-500"><Phone size={20}/></div>
+
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)]">
+                  <Phone className="w-5 h-5" />
+                </div>
                 <div>
-                  <span className="block text-xs font-bold text-[var(--muted)]">Phone</span>
-                  <span className="text-sm font-bold">{org.phone || 'Not Logged'}</span>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Direct Line</p>
+                  <p className="text-sm font-bold text-[var(--text)]">{org.phone || 'Not Logged'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 grid place-items-center text-slate-500"><Mail size={20}/></div>
+
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)]">
+                  <Mail className="w-5 h-5" />
+                </div>
                 <div>
-                  <span className="block text-xs font-bold text-[var(--muted)]">Email</span>
-                  <span className="text-sm font-bold">{org.email || 'Not Logged'}</span>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Communication</p>
+                  <p className="text-sm font-bold text-[var(--text)]">{org.email || 'Not Logged'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 grid place-items-center text-slate-500"><MapPin size={20}/></div>
+
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)]">
+                  <MapPin className="w-5 h-5" />
+                </div>
                 <div>
-                  <span className="block text-xs font-bold text-[var(--muted)]">Location</span>
-                  <span className="text-sm font-bold">{org.city || org.address || 'Not Logged'}</span>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-0.5">Location</p>
+                  <p className="text-sm font-bold text-[var(--text)]">{org.city || org.address || 'Not Logged'}</p>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="panel bg-[var(--primary)] text-white border-none shadow-lg shadow-[var(--primary)]/20">
-             <h3 className="mb-2">Operational Pipeline</h3>
-             <p className="text-xs text-blue-100/60 mb-6">Total value generated by {org.name}</p>
+            <button className="w-full mt-10 secondary !py-2.5 text-xs">
+               Export Activity Report
+            </button>
+          </section>
+
+          <section className="panel p-6 bg-gradient-to-br from-[var(--primary)]/10 to-transparent border-[var(--primary)]/20 shadow-lg shadow-[var(--primary)]/5">
+             <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--primary)] mb-6 flex items-center gap-2">
+               <Shield className="w-3.5 h-3.5" /> Operational Output
+             </h3>
+             
              <div className="grid gap-4">
-                <div className="flex justify-between items-center bg-white/10 p-3 rounded-xl">
-                  <span className="text-xs font-bold">Active Quests</span>
-                  <span className="text-lg font-black">{quests.length}</span>
+                <div className="p-4 rounded-xl bg-black/40 border border-white/5">
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Active Quests</p>
+                  <div className="flex items-end justify-between">
+                    <p className="text-3xl font-bold text-white">{quests.length}</p>
+                    <StatusBadge status="Live" className="!bg-emerald-500/20 !text-emerald-400 !border-none !text-[9px]" />
+                  </div>
                 </div>
-                <div className="flex justify-between items-center bg-white/10 p-3 rounded-xl">
-                  <span className="text-xs font-bold">Generated Revenue</span>
-                  <span className="text-lg font-black">₹{quests.reduce((s, q) => s + (q.paymentAmount || 0), 0)}</span>
+
+                <div className="p-4 rounded-xl bg-black/40 border border-white/5">
+                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Contribution Value</p>
+                  <div className="flex items-end justify-between">
+                    <p className="text-2xl font-bold text-white">₹{quests.reduce((s, q) => s + (q.paymentAmount || 0), 0).toLocaleString('en-IN')}</p>
+                  </div>
                 </div>
-                <button className="bg-white text-[var(--primary)] w-full py-3 rounded-xl font-bold text-sm mt-2 hover:bg-blue-50 transition-colors" onClick={() => navigate('/needs', { state: { orgId: org.id, orgName: org.name } })}>Register New Need</button>
              </div>
-          </div>
+             
+             <div className="mt-8 space-y-3">
+               <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-4 text-center">Relationship Maturity</p>
+               <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                 <div className="h-full bg-[var(--primary)] rounded-full" style={{ width: `${Math.min(org.trustLevel * 10, 100)}%` }} />
+               </div>
+             </div>
+          </section>
         </div>
       </div>
     </div>
   );
 }
+
