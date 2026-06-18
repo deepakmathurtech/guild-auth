@@ -1,17 +1,32 @@
 {
   "indexes": [
-    { "collectionGroup": "organizations", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
-    { "collectionGroup": "needs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
-    { "collectionGroup": "opportunities", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
-    { "collectionGroup": "quests", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
-    { "collectionGroup": "questSubmissions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
-    { "collectionGroup": "outcomes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
-    { "collectionGroup": "verifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
-    { "collectionGroup": "revenueEvents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
-    { "collectionGroup": "knowledgeArchive", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "organizations", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.cityId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "organizations", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.stateId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    
+    { "collectionGroup": "needs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.cityId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "needs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.stateId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+
+    { "collectionGroup": "opportunities", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.cityId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "opportunities", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.stateId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+
+    { "collectionGroup": "quests", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.cityId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "quests", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.stateId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+
+    { "collectionGroup": "questSubmissions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.cityId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "questSubmissions", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.stateId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+
+    { "collectionGroup": "outcomes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.cityId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "outcomes", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.stateId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+
+    { "collectionGroup": "revenueEvents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.cityId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "revenueEvents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "archiveStatus", "order": "ASCENDING" }, { "fieldPath": "jurisdiction.stateId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+
     { "collectionGroup": "activityLogs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "time", "order": "DESCENDING" }] },
     { "collectionGroup": "revenueEvents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "city", "order": "ASCENDING" }, { "fieldPath": "date", "order": "DESCENDING" }] },
-    { "collectionGroup": "revenueEvents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "responsibleReceptionist", "order": "ASCENDING" }, { "fieldPath": "date", "order": "DESCENDING" }] }
+    { "collectionGroup": "revenueEvents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "responsibleReceptionist", "order": "ASCENDING" }, { "fieldPath": "date", "order": "DESCENDING" }] },
+    
+    { "collectionGroup": "organizations", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "searchName", "order": "ASCENDING" }, { "fieldPath": "archiveStatus", "order": "ASCENDING" }] },
+    { "collectionGroup": "needs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "searchName", "order": "ASCENDING" }, { "fieldPath": "archiveStatus", "order": "ASCENDING" }] }
   ],
   "fieldOverrides": []
 }

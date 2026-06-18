@@ -38,6 +38,7 @@ export function OpportunityCreateForm({ initialData = {}, onSuccess, onCancel }:
 
       const oppData = {
         ...form,
+        searchName: form.title.toLowerCase(),
         skillsRequired: form.skillsRequired ? form.skillsRequired.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
         status: 'draft' as const,
       };

@@ -49,6 +49,7 @@ export function NeedCreateForm({ initialOrgId = '', initialOrgName = '', onSucce
       const orgName = organizations.find(o => o.id === form.organizationId)?.name || form.organizationName;
       await createLedgerRecord('needs', {
         ...form,
+        searchName: form.title.toLowerCase(),
         organizationName: orgName,
         status: 'open',
         jurisdiction: profile.jurisdiction

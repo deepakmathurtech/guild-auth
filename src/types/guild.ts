@@ -154,6 +154,7 @@ export interface DisputeRecord extends AuditFields {
 export interface Organization extends AuditFields {
   id: string;
   name: string;
+  searchName: string; // Lowercase for duplicate detection
   category: 'Business' | 'NGO' | 'College' | 'Contractor' | 'Community Group' | 'Government Related';
   contactPerson: string;
   phone?: string;
@@ -187,6 +188,7 @@ export interface InteractionRecord {
 export interface Need extends AuditFields {
   id: string;
   title: string;
+  searchName: string; // Lowercase for duplicate detection
   description: string;
   priority: Priority;
   organizationId: string;
@@ -202,6 +204,7 @@ export interface Opportunity extends AuditFields {
   id: string;
   needId?: string;
   title: string;
+  searchName: string; // Lowercase for duplicate detection
   description: string;
   skillsRequired: string[];
   category: string;

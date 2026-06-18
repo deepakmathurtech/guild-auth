@@ -21,6 +21,7 @@ export async function convertNeedToOpportunity(
   // Create Opportunity
   const opp = await createLedgerRecord('opportunities', {
     ...opportunityData,
+    searchName: (opportunityData.title || need.title).toLowerCase(),
     needId: need.id,
     organizationId: need.organizationId,
     organizationName: need.organizationName,

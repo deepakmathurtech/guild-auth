@@ -36,6 +36,7 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
 
       await createLedgerRecord('organizations', {
         ...form,
+        searchName: form.name.toLowerCase(),
         needs: [],
         opportunities: [],
         currentStatus: 'new',

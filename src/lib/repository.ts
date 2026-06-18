@@ -114,9 +114,12 @@ export async function detectDuplicates<K extends keyof EntityMap>(
   field: string,
   value: string
 ) {
+  const searchField = field === 'name' || field === 'title' ? 'searchName' : field;
+  const searchValue = (field === 'name' || field === 'title') ? value.toLowerCase() : value;
+
   const snapshot = await getDocs(query(
     collection(db, collectionName),
-    where(field, '==', value),
+    where(searchField, '==', searchValue),
     where('archiveStatus', '==', 'active'),
     limit(5)
   ));
