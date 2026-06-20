@@ -1,30 +1,102 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ============================================================
+    // CORE SECURITY FUNCTIONS
+    // ============================================================
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function role() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? userDoc().data.role : 'applicant'; }
-    
-    // Jurisdiction Helpers
+
+    // ============================================================
+    // PRIVILEGE LEVELS (Hierarchical)
+    // ============================================================
+    function isFounder() { return signedIn() && (role() == 'guildFounder' || role() == 'founder'); }
+    function isCentralMaster() { return isFounder() || role() == 'centralGuildMaster'; }
+    function isStateMaster() { return isCentralMaster() || (role() == 'stateGuildMaster'); }
+    function isCityMaster() { return isStateMaster() || (role() == 'cityGuildMaster'); }
+    function isReceptionist() { return isCityMaster() || role() == 'receptionist'; }
+    function isMember() { return signedIn() && role() in ['member', 'contributor', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'guildFounder', 'founder']; }
+
+    // ============================================================
+    // JURISDICTION FUNCTIONS
+    // ============================================================
     function myJuris() { return userDoc().data.jurisdiction; }
     function targetJuris() { return resource.data.jurisdiction; }
     function incomingJuris() { return request.resource.data.jurisdiction; }
-    
-    function isFounder() { return signedIn() && (role() == 'guildFounder' || role() == 'founder'); }
-    function isCentralMaster() { return isFounder() || role() == 'centralGuildMaster'; }
-    
-    function isStateMaster() { 
-      return isCentralMaster() || (role() == 'stateGuildMaster' && targetJuris().stateId == myJuris().stateId); 
+
+    function isSameCity() { return targetJuris().cityId == myJuris().cityId; }
+    function isSameState() { return targetJuris().stateId == myJuris().stateId; }
+    function isSameCountry() { return targetJuris().countryId == myJuris().countryId; }
+    function isInMyJuris() { return isSameCountry() && (isSameState() || isSameCity()); }
+    function isBranchScope() { return targetJuris().cityId == myJuris().cityId; }
+    function isStateScope() { return targetJuris().stateId == myJuris().stateId; }
+
+    // ============================================================
+    // OWNERSHIP & PERMISSION FUNCTIONS
+    // ============================================================
+    function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function ownsDoc(field) { return signedIn() && request.auth.uid == resource.data[field]; }
+    function ownsIncoming(field) { return signedIn() && request.auth.uid == request.resource.data[field]; }
+    function isOwnerOrMaster() { return ownsDoc('ownerId') || isReceptionist(); }
+    function noPermanentDelete() { return false; }
+
+    // ============================================================
+    // FOUNDER PROTECTION - Only founder can modify founder roles
+    // ============================================================
+    function isProtectedRoleChange() {
+      // Prevent non-founders from assigning founder-level roles
+      let newRole = request.resource.data.role;
+      return newRole in ['guildFounder', 'founder', 'centralGuildMaster', 'nationalGuildMaster'];
     }
-    
-    function isCityMaster() {
-      return isStateMaster() || (role() == 'cityGuildMaster' && targetJuris().cityId == myJuris().cityId);
+    function isProtectedTarget() {
+      // Protect founder-level users from modification
+      return resource.data.role in ['guildFounder', 'founder', 'centralGuildMaster', 'nationalGuildMaster'];
     }
-    
-    function isReceptionist() {
-      return isCityMaster() || (role() == 'receptionist' && targetJuris().cityId == myJuris().cityId);
+    function founderCanModify() { return isFounder() && isProtectedRoleChange() == false; }
+    function founderOnlyRoleChange() { return isFounder() && isProtectedRoleChange(); }
+
+    // ============================================================
+    // ANTI-PRIVILEGE ESCALATION
+    // ============================================================
+    function cannotSelfUpgrade() {
+      // Users cannot upgrade their own role
+      return request.auth.uid != resource.data.uid;
+    }
+    function cannotExceedMyLevel() {
+      // Users cannot assign roles higher than their own
+      let newRole = request.resource.data.role;
+      let myLevel = getPrivilegeLevel(role());
+      let newLevel = getPrivilegeLevel(newRole);
+      return newLevel <= myLevel;
+    }
+    function getPrivilegeLevel(r) {
+      // 0 = applicant, 1 = member, 2 = contributor, 3 = receptionist,
+      // 4 = cityGM, 5 = stateGM, 6 = centralGM, 7 = founder
+      return r == 'founder' || r == 'guildFounder' ? 7 :
+             r == 'centralGuildMaster' || r == 'nationalGuildMaster' ? 6 :
+             r == 'stateGuildMaster' ? 5 :
+             r == 'cityGuildMaster' ? 4 :
+             r == 'receptionist' ? 3 :
+             r == 'contributor' ? 2 :
+             r == 'member' ? 1 : 0;
     }
 
+    // ============================================================
+    // AUDIT LOGGING PROTECTION
+    // ============================================================
+    function isAuditLogValid() {
+      // Audit logs must have required fields and cannot be modified
+      let data = request.resource.data;
+      return data.userId != null && data.action != null && data.time != null;
+    }
+    function canWriteAudit() {
+      return signedIn() && isAuditLogValid();
+    }
+
+    // ============================================================
+    // JURISDICTION PERMISSION CHECKER
+    // ============================================================
     function canWriteJuris(data) {
       return isFounder() || (
         data.jurisdiction.countryId == myJuris().countryId &&
@@ -38,41 +110,90 @@ service cloud.firestore {
       );
     }
 
-    function owns(uid) { return signedIn() && request.auth.uid == uid; }
-    function noPermanentDelete() { return false; }
+    // ============================================================
+    // DATA VALIDATION FUNCTIONS
+    // ============================================================
+    function hasRequiredFields(data, required) {
+      return required.all(r => data.keys().hasAll([r]));
+    }
+    function isValidJurisdiction(data) {
+      return data.keys().hasAll(['countryId', 'stateId', 'cityId']);
+    }
 
+    // ============================================================
+    // COLLECTION: USERS
+    // ============================================================
     match /users/{userId} {
+      // Anyone authenticated can read user profiles
       allow read: if signedIn();
-      allow create: if owns(userId);
-      allow update: if owns(userId) || isCityMaster(); 
+
+      // Users can only create their own profile (bootstrap)
+      allow create: if owns(userId) && request.resource.data.keys().hasAll(['email', 'fullName', 'jurisdiction']);
+
+      // Update rules: protect against privilege escalation
+      allow update: if (
+        owns(userId) || isReceptionist()
+      ) && (
+        // Non-founders cannot modify founder role changes
+        (!isFounder() && isProtectedRoleChange() == false) ||
+        isFounder()
+      ) && (
+        // Prevent self-upgrade for non-founders
+        owns(userId) || cannotSelfUpgrade()
+      ) && (
+        // Users cannot exceed their privilege level
+        owns(userId) || cannotExceedMyLevel()
+      );
+
+      // Founder can only be modified by founder
+      allow update: if isFounder() && isProtectedTarget();
       allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: ORGANIZATIONS
+    // ============================================================
     match /organizations/{id} {
       allow read: if isReceptionist();
-      allow create: if signedIn() && canWriteJuris(request.resource.data);
-      allow update: if signedIn() && canWriteJuris(resource.data);
+      allow create: if isMember() && canWriteJuris(request.resource.data);
+      allow update: if isReceptionist() && canWriteJuris(resource.data);
       allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: NEEDS
+    // ============================================================
     match /needs/{id} {
       allow read: if isReceptionist();
-      allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
+      allow create, update: if isMember() && canWriteJuris(request.resource.data);
       allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: OPPORTUNITIES
+    // ============================================================
     match /opportunities/{id} {
-      allow read: if signedIn() && (targetJuris().cityId == myJuris().cityId || isCentralMaster());
-      allow create, update: if signedIn() && (canWriteJuris(request.resource.data || resource.data) || incomingJuris().applicants.hasAny([request.auth.uid]));
+      allow read: if signedIn() && (isBranchScope() || isCentralMaster());
+      allow create: if isMember() && canWriteJuris(request.resource.data);
+      allow update: if signedIn() && (
+        canWriteJuris(resource.data) ||
+        incomingJuris().applicants.hasAny([request.auth.uid])
+      );
       allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: QUESTS
+    // ============================================================
     match /quests/{id} {
-      allow read: if signedIn() && (targetJuris().cityId == myJuris().cityId || isCentralMaster());
-      allow create, update: if signedIn() && (canWriteJuris(request.resource.data || resource.data));
+      allow read: if signedIn() && (isBranchScope() || isCentralMaster());
+      allow create, update: if isMember() && canWriteJuris(request.resource.data);
       allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: QUEST SUBMISSIONS
+    // ============================================================
     match /questSubmissions/{id} {
       allow read: if signedIn() && (resource.data.memberId == request.auth.uid || isReceptionist());
       allow create: if signedIn() && request.resource.data.memberId == request.auth.uid;
@@ -80,56 +201,138 @@ service cloud.firestore {
       allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: OUTCOMES
+    // ============================================================
     match /outcomes/{id} {
       allow read: if isReceptionist();
-      allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
+      allow create, update: if isMember() && canWriteJuris(request.resource.data);
       allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: VERIFICATIONS
+    // ============================================================
     match /verifications/{id} {
-      allow read: if isReceptionist();
-      allow create, update: if signedIn() && canWriteJuris(request.resource.data || resource.data);
-      allow delete: if noPermanentDelete();
-    }
-
-    match /revenueEvents/{id} {
       allow read: if isReceptionist();
       allow create, update: if isReceptionist();
       allow delete: if noPermanentDelete();
     }
 
-    match /knowledgeBase/{id} {
-      allow read: if signedIn();
-      allow create: if role() in ['member', 'contributor', 'receptionist'];
+    // ============================================================
+    // COLLECTION: REVENUE EVENTS
+    // ============================================================
+    match /revenueEvents/{id} {
+      allow read: if isReceptionist();
+      allow create: if isReceptionist();
       allow update: if isReceptionist();
       allow delete: if noPermanentDelete();
     }
 
-    match /activityLogs/{id} {
-      allow read: if isCityMaster();
-      allow create: if signedIn();
-      allow update, delete: if false;
-    }
-
-    match /notifications/{id} {
-      allow read, update: if signedIn() && (resource.data.userId == request.auth.uid || isReceptionist());
-      allow create: if isReceptionist();
+    // ============================================================
+    // COLLECTION: KNOWLEDGE BASE
+    // ============================================================
+    match /knowledgeBase/{id} {
+      allow read: if signedIn();
+      allow create: if isMember();
+      allow update: if isReceptionist();
       allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: ACTIVITY LOGS (Audit - Immutable)
+    // ============================================================
+    match /activityLogs/{id} {
+      // Only leadership can read logs
+      allow read: if isCityMaster();
+      // Anyone can create audit logs
+      allow create: if canWriteAudit();
+      // Immutable - no updates or deletes
+      allow update, delete: if false;
+    }
+
+    // ============================================================
+    // COLLECTION: NOTIFICATIONS
+    // ============================================================
+    match /notifications/{id} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isReceptionist());
+      allow create: if isReceptionist();
+      allow update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if noPermanentDelete();
+    }
+
+    // ============================================================
+    // COLLECTION: GUILD REGIONS (Root - Founder Only)
+    // ============================================================
     match /guildRegions/{id} {
       allow read: if signedIn();
       allow write: if isFounder();
     }
 
+    // ============================================================
+    // COLLECTION: GUILD STATES
+    // ============================================================
     match /guildStates/{id} {
       allow read: if signedIn();
-      allow write: if isCentralMaster();
+      allow create: if isCentralMaster();
+      allow update: if isCentralMaster();
+      allow delete: if noPermanentDelete();
     }
 
+    // ============================================================
+    // COLLECTION: GUILD CITIES
+    // ============================================================
     match /guildCities/{id} {
       allow read: if signedIn();
-      allow write: if isStateMaster();
+      allow create, update: if isStateMaster();
+      allow delete: if noPermanentDelete();
+    }
+
+    // ============================================================
+    // COLLECTION: SUCCESSION PLANS (Protected)
+    // ============================================================
+    match /successionPlans/{id} {
+      allow read: if isReceptionist();
+      allow write: if isFounder();
+    }
+
+    // ============================================================
+    // COLLECTION: LEAVE RECORDS
+    // ============================================================
+    match /leaveRecords/{id} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isReceptionist());
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    // ============================================================
+    // COLLECTION: ESCALATION RECORDS
+    // ============================================================
+    match /escalationRecords/{id} {
+      allow read: if isCityMaster();
+      allow create: if signedIn();
+      allow update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    // ============================================================
+    // COLLECTION: DISPUTE RECORDS
+    // ============================================================
+    match /disputeRecords/{id} {
+      allow read: if isReceptionist();
+      allow create: if signedIn();
+      allow update: if isReceptionist();
+      allow delete: if noPermanentDelete();
+    }
+
+    // ============================================================
+    // COLLECTION: TRANSFER RECORDS
+    // ============================================================
+    match /transferRecords/{id} {
+      allow read: if isCityMaster();
+      allow create, update: if isFounder();
+      allow delete: if noPermanentDelete();
     }
   }
 }

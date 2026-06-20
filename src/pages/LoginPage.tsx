@@ -132,8 +132,8 @@ export function LoginPage() {
           }} />
           
           <div className="relative z-10 mb-8">
-            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center text-[var(--primary)] text-2xl font-bold shadow-xl border border-[var(--primary)]/20">
-              G
+            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center shadow-xl border border-[var(--primary)]/20 overflow-hidden">
+              <img src="/guild-logo.png" alt="" className="w-10 h-10 object-contain" />
             </div>
           </div>
 

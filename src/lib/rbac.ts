@@ -11,7 +11,8 @@ export const roleWeight: Record<GuildRole, number> = {
   centralGuildMaster: 6,
   nationalGuildMaster: 6,
   guildFounder: 7,
-  founder: 7
+  founder: 7,
+  organizationRepresentative: 1  // PHASE 1: Same as member - converted role
 };
 
 export function hasRole(userRole: GuildRole | undefined, allowed: GuildRole[]) {
@@ -40,5 +41,6 @@ export const roleLabels: Record<GuildRole, string> = {
   centralGuildMaster: 'Central Guild Master',
   nationalGuildMaster: 'National Guild Master',
   guildFounder: 'Guild Founder',
-  founder: 'Founder'
+  founder: 'Founder',
+  organizationRepresentative: 'Organization Representative'  // PHASE 1
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { listRecords } from '../lib/repository';
+import { collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import type { GuildUser } from '../types/guild';
-import { where } from 'firebase/firestore';
 import { Search, User, MapPin, Star, X, ChevronRight } from 'lucide-react';
 
 interface Props {
@@ -9,15 +9,34 @@ interface Props {
   selectedId?: string;
 }
 
+const MEMBER_ROLES = ['member', 'contributor', 'receptionistCandidate', 'receptionist'];
+
 export function MemberSearch({ onSelect, selectedId }: Props) {
   const [users, setUsers] = useState<GuildUser[]>([]);
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    listRecords('users', [
-      where('archiveStatus', '==', 'active'),
-      where('role', 'in', ['member', 'contributor'])
-    ]).then(setUsers);
+    async function loadUsers() {
+      try {
+        const q = query(
+          collection(db, 'users'),
+          where('archiveStatus', '==', 'active'),
+          limit(100)
+        );
+        const snap = await getDocs(q);
+        const allUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() } as GuildUser));
+        // Filter to member roles in JavaScript (Firestore 'in' has limitations)
+        const filtered = allUsers.filter(u => u.role && MEMBER_ROLES.includes(u.role));
+        setUsers(filtered);
+      } catch (err) {
+        console.error('Failed to load users:', err);
+        setUsers([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadUsers();
   }, []);
 
   const results = useMemo(() => {
@@ -60,13 +79,19 @@ export function MemberSearch({ onSelect, selectedId }: Props) {
         <div className="relative">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
-            <input 
-              type="text" 
-              placeholder="Search personnel by name, skill, or city..." 
-              value={search} 
-              onChange={e => setSearch(e.target.value)} 
+            <input
+              type="text"
+              placeholder={loading ? "Loading personnel..." : "Search personnel by name, skill, or city..."}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              disabled={loading}
               className="pl-10 !bg-[var(--bg)]"
             />
+            {loading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="w-4 h-4 border-2 rounded-full animate-spin border-[var(--border)] border-t-[var(--primary)]" />
+              </div>
+            )}
           </div>
           
           {search && (

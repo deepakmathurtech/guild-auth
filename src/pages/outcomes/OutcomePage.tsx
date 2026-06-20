@@ -82,6 +82,7 @@ export function OutcomePage() {
       if (form.revenueGenerated > 0) {
         await createLedgerRecord('revenueEvents', {
           source: 'Opportunity Outcome',
+          category: 'service',
           opportunityId: form.relatedOpportunityId,
           organizationId: form.organizationId,
           organizationName: form.organizationName,

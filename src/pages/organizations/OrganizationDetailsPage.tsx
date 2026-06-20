@@ -5,11 +5,11 @@ import { useAuth } from '../../context/AuthContext';
 import type { Organization, Quest, InteractionRecord, GuildUser } from '../../types/guild';
 import { StatusBadge } from '../../components/StatusBadge';
 import { where, orderBy, limit } from 'firebase/firestore';
-import { 
-  Phone, Mail, MapPin, User, History, 
+import {
+  Phone, Mail, MapPin, User, History,
   MessageSquare, Plus, ArrowLeftRight, Save,
   ChevronLeft, ExternalLink, Shield, Globe,
-  MoreVertical, Calendar, UserPlus, Star
+  MoreVertical, Calendar, UserPlus, Star, Building2
 } from 'lucide-react';
 
 export function OrganizationDetailsPage() {
@@ -97,6 +97,25 @@ export function OrganizationDetailsPage() {
                 <span className="font-medium">Account Owner: {owner?.fullName || 'Unassigned'}</span>
               </div>
             </div>
+
+            {/* Branch & Jurisdiction Info */}
+            {(org.jurisdiction || org.branchName) && (
+              <div className="flex flex-wrap gap-4 items-center mt-3 pt-3 border-t border-[var(--border)]">
+                {org.jurisdiction && (
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                    <MapPin className="w-3 h-3" />
+                    {org.jurisdiction.cityName || org.jurisdiction.stateName || org.jurisdiction.countryName
+                      ? `${org.jurisdiction.cityName || ''}${org.jurisdiction.cityName && org.jurisdiction.stateName ? ', ' : ''}${org.jurisdiction.stateName || ''}`.trim()
+                      : 'Location not set'}
+                  </div>
+                )}
+                {org.branchName && (
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                    <Building2 className="w-3 h-3" /> Branch: {org.branchName}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -283,25 +302,30 @@ export function OrganizationDetailsPage() {
              <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--primary)] mb-6 flex items-center gap-2">
                <Shield className="w-3.5 h-3.5" /> Operational Output
              </h3>
-             
-             <div className="grid gap-4">
-                <div className="p-4 rounded-xl bg-black/40 border border-white/5">
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Active Quests</p>
-                  <div className="flex items-end justify-between">
-                    <p className="text-3xl font-bold text-white">{quests.length}</p>
-                    <StatusBadge status="Live" className="!bg-emerald-500/20 !text-emerald-400 !border-none !text-[9px]" />
-                  </div>
+
+             <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
+                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Needs Processed</p>
+                  <p className="text-xl font-bold text-white">{org.needsProcessed || 0}</p>
                 </div>
 
-                <div className="p-4 rounded-xl bg-black/40 border border-white/5">
-                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1">Contribution Value</p>
-                  <div className="flex items-end justify-between">
-                    <p className="text-2xl font-bold text-white">₹{quests.reduce((s, q) => s + (q.paymentAmount || 0), 0).toLocaleString('en-IN')}</p>
-                  </div>
+                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
+                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Opportunities</p>
+                  <p className="text-xl font-bold text-white">{org.opportunitiesCreated || 0}</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
+                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Quests Created</p>
+                  <p className="text-xl font-bold text-white">{org.questsCreated || quests.length}</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
+                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Outcomes</p>
+                  <p className="text-xl font-bold text-white">{org.outcomesDelivered || 0}</p>
                 </div>
              </div>
-             
-             <div className="mt-8 space-y-3">
+
+             <div className="mt-6 space-y-3">
                <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-4 text-center">Relationship Maturity</p>
                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                   <div className="h-full bg-[var(--primary)] rounded-full" style={{ width: `${Math.min(({ new: 25, verified: 50, trusted: 75, partner: 100 }[org.trustLevel] || 25), 100)}%` }} />

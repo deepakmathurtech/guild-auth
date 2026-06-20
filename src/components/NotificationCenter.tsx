@@ -1,30 +1,56 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCircle2, MessageSquare, Shield, Sparkles, X, Archive, Trash2, CheckCheck } from 'lucide-react';
-import { query, collection, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { query, collection, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { NotificationService } from '../services/notificationService';
 import type { NotificationRecord, NotificationStatus } from '../types/guild';
 
 export function NotificationCenter() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
+  const [allNotifications, setAllNotifications] = useState<NotificationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!profile) return;
-    const q = query(
-      collection(db, 'notifications'), 
-      where('userId', '==', profile.uid),
-      where('status', 'in', ['unread', 'read']),
-      orderBy('createdAt', 'desc'),
-      limit(20)
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setNotifications(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NotificationRecord)));
-    });
-    return unsubscribe;
+
+    async function fetchNotifications() {
+      if (!profile) return;
+
+      try {
+        // NOTE: Firestore requires composite indexes for where + orderBy queries
+        // Fetch simple data and filter/sort in memory instead
+        const q = query(
+          collection(db, 'notifications'),
+          where('userId', '==', profile.uid),
+          limit(100)
+        );
+        const snap = await getDocs(q);
+        const notifs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as NotificationRecord));
+
+        // Filter out archived and sort by createdAt desc in memory
+        const filtered = notifs
+          .filter(n => n.status !== 'archived')
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        setAllNotifications(filtered);
+      } catch (err) {
+        console.error('Failed to fetch notifications:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    setLoading(true);
+    fetchNotifications();
   }, [profile]);
+
+  const notifications = useMemo(() => {
+    return allNotifications.filter(n => n.status === 'unread' || n.status === 'read').slice(0, 20);
+  }, [allNotifications]);
 
   const unreadCount = notifications.filter(n => n.status === 'unread').length;
 
@@ -77,11 +103,12 @@ export function NotificationCenter() {
                 if (n.priority === 'high' || n.priority === 'critical') { color = 'text-red-500 bg-red-500/5'; }
 
                 return (
-                  <div 
-                    key={n.id} 
+                  <div
+                    key={n.id}
                     className={`p-4 rounded-xl border border-transparent hover:bg-[var(--card-subtle)]/50 cursor-pointer transition-all flex gap-4 group mb-1 ${n.status === 'unread' ? 'bg-[var(--primary)]/5 !border-[var(--primary)]/10' : ''}`}
                     onClick={() => {
                       if (n.status === 'unread') NotificationService.markAsRead(n.id, profile!);
+                      if (n.actionUrl) navigate(n.actionUrl);
                     }}
                   >
                     <div className={`w-9 h-9 rounded-lg shrink-0 flex items-center justify-center ${color}`}>

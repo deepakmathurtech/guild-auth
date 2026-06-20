@@ -1,15 +1,16 @@
-export type GuildRole = 
-  | 'applicant' 
-  | 'member' 
-  | 'contributor' 
-  | 'receptionistCandidate' 
-  | 'receptionist' 
-  | 'cityGuildMaster' 
-  | 'stateGuildMaster' 
-  | 'centralGuildMaster' 
-  | 'nationalGuildMaster' 
+export type GuildRole =
+  | 'applicant'
+  | 'member'
+  | 'contributor'
+  | 'receptionistCandidate'
+  | 'receptionist'
+  | 'cityGuildMaster'
+  | 'stateGuildMaster'
+  | 'centralGuildMaster'
+  | 'nationalGuildMaster'
   | 'guildFounder'
-  | 'founder';
+  | 'founder'
+  | 'organizationRepresentative';  // PHASE 1: Added for org conversion - one account, one active role
 
 export type UserStatus = 
   | 'active' 
@@ -44,6 +45,43 @@ export interface Jurisdiction {
   stateName: string;
   cityId: string;
   cityName: string;
+  branchId?: string;
+  branchName?: string;
+}
+
+export interface Branch extends AuditFields {
+  id: string;
+  name: string;
+  code: string; // Short code for display
+  cityId: string;
+  cityName: string;
+  stateId: string;
+  stateName: string;
+  countryId: string;
+  countryName: string;
+  status: 'active' | 'pending' | 'inactive';
+  assignedGuildMasterId?: string;
+  assignedGuildMasterName?: string;
+  assignedReceptionistId?: string;
+  assignedReceptionistName?: string;
+  memberCount?: number;
+  organizationCount?: number;
+  receptionistCount?: number;
+  reputationScore?: number;
+}
+
+export interface BranchRequest extends AuditFields {
+  id: string;
+  requestedCity: string;
+  requestedState: string;
+  requestedCountry: string;
+  requestedByUserId?: string;
+  requestedByOrganizationId?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  resolvedBy?: string;
+  resolvedAt?: string;
+  branchId?: string;
+  notes?: string;
 }
 
 export type LedgerCollection =
@@ -89,6 +127,7 @@ export interface GuildUser extends AuditFields {
   status: UserStatus;
   contactInformation?: string;
   skills: string[];
+  skillsBeingLearned?: string[];
   interests: string[];
   bio?: string;
   verificationStatus: VerificationStatus;
@@ -107,7 +146,24 @@ export interface GuildUser extends AuditFields {
   preferredRole?: string;
   referralSource?: string;
   lastActiveAt?: string;
+  // Profile expansion
+  certificates?: { name: string; issuer: string; date: string; url?: string }[];
+  proofs?: { id: string; title: string; description: string; link?: string; skillsVerified: string[]; createdAt: string; status: 'pending' | 'approved' | 'rejected' }[];
+  goals?: string[];
+  branchId?: string;
+  branchName?: string;
+  assignedReceptionistId?: string;
+  assignedGuildMasterId?: string;
+  assignedGuildMasterName?: string;
+  // Trust & Growth Scores (calculated)
+  trustScore?: number;
+  growthScore?: number;
+  responseTimeAvg?: number;
+  activityStreak?: number;
 }
+
+// User with firestore document ID
+export type User = GuildUser & { id: string };
 
 export interface TransferRecord extends AuditFields {
   id: string;
@@ -156,6 +212,7 @@ export interface Organization extends AuditFields {
   name: string;
   searchName: string; // Lowercase for duplicate detection
   category: 'Business' | 'NGO' | 'College' | 'Contractor' | 'Community Group' | 'Government Related';
+  industry?: string;
   contactPerson: string;
   phone?: string;
   email?: string;
@@ -166,10 +223,26 @@ export interface Organization extends AuditFields {
   opportunities: string[];
   currentStatus: OrganizationStatus;
   ownerId?: string;
+  ownerEmail?: string; // Email for organization representative login
   trustLevel: 'new' | 'verified' | 'trusted' | 'partner';
   lastContactAt?: string;
   nextFollowUpAt?: string;
   relationshipNotes: string;
+  // Branch membership
+  branchId?: string;
+  branchName?: string;
+  // Profile expansion
+  assignedReceptionistId?: string;
+  assignedGuildMasterId?: string;
+  verificationStatus?: VerificationStatus;
+  industrySpecialization?: string;
+  // Relationship tracking
+  relationshipHistory?: { date: string; action: string; description: string; by: string }[];
+  // Metrics
+  needsProcessed?: number;
+  opportunitiesCreated?: number;
+  questsCreated?: number;
+  outcomesDelivered?: number;
 }
 
 export interface InteractionRecord {
@@ -381,18 +454,42 @@ export interface Outcome extends AuditFields {
   lessonsLearned: string;
 }
 
+export type RevenueCategory = 'donation' | 'sponsorship' | 'partnership' | 'service' | 'membership' | 'grant' | 'event' | 'quest_payout' | 'other';
+
 export interface RevenueEvent extends AuditFields {
   id: string;
   source: string;
+  sourceName?: string;
+  category: RevenueCategory;
   questId?: string;
   opportunityId?: string;
   organizationId?: string;
   organizationName?: string;
   amount: number;
+  amountInHand?: number; // Amount physically received
   date: string;
+  dateReceived?: string;
   city?: string;
   opportunityType?: string;
   participants: string[];
+  // Attribution
+  attributedBranchId?: string;
+  attributedReceptionistId?: string;
+  attributedGuildMasterId?: string;
+  // Sustainability tracking
+  recurring?: boolean;
+  recurringPeriod?: 'monthly' | 'quarterly' | 'annually';
+  projectedNextDate?: string;
+  notes?: string;
+}
+
+export interface RevenueSummary {
+  totalRevenue: number;
+  totalInHand: number;
+  totalProjected: number;
+  byCategory: Record<RevenueCategory, number>;
+  byBranch: Record<string, number>;
+  monthlyTrend: { month: string; amount: number }[];
 }
 
 export interface KnowledgeRecord extends AuditFields {

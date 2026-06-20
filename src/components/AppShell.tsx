@@ -1,9 +1,9 @@
 ﻿import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { 
-  BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag, 
-  IndianRupee, LayoutDashboard, LogOut, Menu, Moon, Shield, 
-  Sparkles, Sun, UsersRound, X
+import {
+  BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag,
+  IndianRupee, LayoutDashboard, LogOut, Menu, Moon, Shield,
+  Sparkles, Sun, UsersRound, X, MapPin, Network
 } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +17,7 @@ const nav = [
   { group: 'Command', to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['applicant', 'member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Intake', to: '/organizations', label: 'Organizations', icon: BriefcaseBusiness, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Intake', to: '/needs', label: 'Needs', icon: Flag, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
+  { group: 'Intake', to: '/members', label: 'Members', icon: UsersRound, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Operations', to: '/opportunities', label: 'Opportunities', icon: Sparkles, roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Operations', to: '/quests', label: 'Quests', icon: ClipboardCheck, roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Operations', to: '/submissions', label: 'Submissions', icon: ClipboardCheck, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
@@ -25,6 +26,8 @@ const nav = [
   { group: 'Closeout', to: '/verification', label: 'Verification', icon: Shield, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Knowledge', to: '/knowledge', label: 'Knowledge', icon: BookOpen, roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Control', to: '/ledger', label: 'Ledger', icon: Database, roles: ['cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
+  { group: 'Control', to: '/branches', label: 'Branches', icon: MapPin, roles: ['cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
+  { group: 'Control', to: '/branches-hierarchy', label: 'Branch Network', icon: Network, roles: ['guildFounder', 'founder'] },
   { group: 'Control', to: '/admin', label: 'Admin', icon: UsersRound, roles: ['centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] }
 ] as const;
 

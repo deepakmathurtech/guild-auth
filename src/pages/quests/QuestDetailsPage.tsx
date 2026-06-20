@@ -65,12 +65,16 @@ export function QuestDetailsPage() {
   const [revenue, setRevenue] = useState<RevenueEvent[]>([]);
   const [linkedNeed, setLinkedNeed] = useState<Need | null>(null);
   const [linkedOpp, setLinkedOpp] = useState<Opportunity | null>(null);
+  const [showStatusEditor, setShowStatusEditor] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
   const canManageQuest = hasRole(profile?.role, [
     'receptionist',
     'cityGuildMaster',
     'stateGuildMaster',
     'centralGuildMaster',
-    'nationalGuildMaster'
+    'nationalGuildMaster',
+    'founder',
+    'guildFounder'
   ]);
 
   useEffect(() => {
@@ -131,6 +135,19 @@ export function QuestDetailsPage() {
     }
   }
 
+  async function handleRejectApplicant(uid: string) {
+    if (!quest || !profile || !canManageQuest) return;
+    if (!confirm('Reject this applicant?')) return;
+    try {
+      const newApplicants = (quest.applicants || []).filter(a => a !== uid);
+      await updateLedgerRecord('quests', quest.id, { applicants: newApplicants }, profile, `Rejected Applicant ${uid}`);
+      const updated = await getRecord('quests', quest.id);
+      if (updated) setQuest(updated as Quest);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
   if (!quest) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-10 h-10 border-2 rounded-full animate-spin border-[var(--muted)] border-t-[var(--primary)]" />
@@ -157,7 +174,34 @@ export function QuestDetailsPage() {
               </span>
               <StatusBadge status={quest.status} />
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">{quest.title}</h1>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 flex flex-wrap items-center gap-3">
+              {quest.title}
+              {canManageQuest && (
+                showStatusEditor ? (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value)}
+                      className="text-sm px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--input-bg)]"
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="open">Open</option>
+                      <option value="inProgress">In Progress</option>
+                      <option value="underReview">Under Review</option>
+                      <option value="completed">Completed</option>
+                      <option value="closed">Closed</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                    <button onClick={() => handleUpdateField('status', newStatus)} className="text-sm px-3 py-1.5 rounded-lg bg-emerald-500 text-white">Save</button>
+                    <button onClick={() => setShowStatusEditor(false)} className="text-sm px-3 py-1.5 rounded-lg bg-gray-500 text-white">Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setNewStatus(quest.status); setShowStatusEditor(true); }} className="flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)]">
+                    <span className="text-xs">(change status)</span>
+                  </button>
+                )
+              )}
+            </h1>
             <div className="flex items-center gap-2 text-[var(--text-secondary)] font-medium">
               <Building className="w-4 h-4 text-[var(--primary)]" />
               <span>{quest.organizationName || quest.sourceName || 'Internal Guild'}</span>
@@ -402,7 +446,10 @@ export function QuestDetailsPage() {
                       {quest.applicants.map(uid => (
                         <div key={uid} className="flex justify-between items-center p-3 rounded-xl bg-[var(--bg)] border border-sky-500/20">
                           <span className="text-[11px] font-mono text-sky-600">{uid.slice(0, 12)}...</span>
-                          <button className="primary !py-1 !px-3 !text-[9px] !rounded-md" onClick={() => handleAcceptApplicant(uid)}>Enlist</button>
+                          <div className="flex gap-2">
+                            <button className="primary !py-1 !px-3 !text-[9px] !rounded-md" onClick={() => handleAcceptApplicant(uid)}>Enlist</button>
+                            <button className="!py-1 !px-3 !text-[9px] !rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20" onClick={() => handleRejectApplicant(uid)}>Reject</button>
+                          </div>
                         </div>
                       ))}
                     </div>

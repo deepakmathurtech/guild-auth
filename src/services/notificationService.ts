@@ -93,7 +93,7 @@ export const NotificationService = {
     }
 
     // Create New Notification
-    const notification = await createLedgerRecord('notifications', {
+    const notificationData: Partial<NotificationRecord> = {
       userId,
       type,
       priority,
@@ -104,10 +104,13 @@ export const NotificationService = {
       channel: 'inApp',
       futureChannels: ['email'],
       actionUrl: options.actionUrl,
-      metadata: options.metadata,
       aggregatedCount: 1,
       lastOccurrence: new Date().toISOString()
-    }, profile, 'Notification Triggered', true);
+    };
+    if (options.metadata) {
+      notificationData.metadata = options.metadata as Record<string, unknown>;
+    }
+    const notification = await createLedgerRecord('notifications', notificationData as NotificationRecord, profile, 'Notification Triggered', true);
 
     return notification.id;
   },

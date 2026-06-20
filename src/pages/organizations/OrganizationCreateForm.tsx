@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { createLedgerRecord, detectDuplicates } from '../../lib/repository';
+import { findBranchByJurisdiction } from '../../services/branchService';
 import type { Organization } from '../../types/guild';
 import { BriefcaseBusiness, User, Phone, Mail, MapPin, FileText, ChevronRight, X, Save } from 'lucide-react';
 
@@ -19,7 +20,9 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
     email: '',
     city: profile?.jurisdiction.cityName || '',
     address: '',
-    description: ''
+    description: '',
+    // Owner email for organization login/claim
+    ownerEmail: ''
   });
   const [status, setStatus] = useState('');
 
@@ -34,6 +37,9 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
         throw new Error(`CRITICAL: Organization "${form.name}" already exists in the Federation ledger.`);
       }
 
+      // Auto-link to branch based on jurisdiction
+      const branch = await findBranchByJurisdiction(profile.jurisdiction);
+
       await createLedgerRecord('organizations', {
         ...form,
         searchName: form.name.toLowerCase(),
@@ -42,7 +48,15 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
         currentStatus: 'new',
         trustLevel: 'new',
         relationshipNotes: '',
-        jurisdiction: profile.jurisdiction
+        jurisdiction: profile.jurisdiction,
+        // Link to branch
+        branchId: branch?.id,
+        branchName: branch?.name,
+        // Auto-assign to receptionist if creating as receptionist
+        assignedReceptionistId: profile.role === 'receptionist' ? profile.uid : undefined,
+        // Owner info for organization login
+        ownerEmail: form.ownerEmail || form.email,
+        ownerId: undefined // Will be set when org claims ownership
       }, profile, 'Organization Created');
       setStatus('');
       onSuccess();
@@ -102,15 +116,17 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
                 </label>
                 <input required value={form.contactPerson} onChange={e => setForm({...form, contactPerson: e.target.value})} placeholder="Full Name" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[var(--text-secondary)]">Direct Phone</label>
-                  <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="+91 ..." />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[var(--text-secondary)]">Email Address</label>
-                  <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="name@org.com" />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[var(--text-secondary)]">Direct Phone</label>
+                <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="+91 ..." />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[var(--text-secondary)]">Email Address</label>
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="name@org.com" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-[var(--text-secondary)]">Owner Login Email <span className="text-[var(--text-muted)] font-normal">(for organization access)</span></label>
+                <input type="email" value={form.ownerEmail} onChange={e => setForm({...form, ownerEmail: e.target.value})} placeholder="admin@org.com" />
               </div>
             </div>
           </div>

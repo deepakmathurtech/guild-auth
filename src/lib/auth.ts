@@ -11,7 +11,9 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
+import { findBranchByJurisdiction } from '../services/branchService';
 import type { GuildRole, GuildUser, Jurisdiction } from '../types/guild';
+import { FounderBootstrapService } from '../services/founderBootstrapService';
 
 function nowIso() {
   return new Date().toISOString();
@@ -20,14 +22,77 @@ function nowIso() {
 export async function ensureUserProfile(user: User, jurisdiction?: Jurisdiction) {
   const userRef = doc(db, 'users', user.uid);
   const snapshot = await getDoc(userRef);
-  if (snapshot.exists()) return snapshot.data() as GuildUser;
 
+  // Check if founder email - needs bootstrap
+  const isFounder = user.email?.toLowerCase() === 'thecentralguild@gmail.com';
+
+  if (snapshot.exists()) {
+    const existingProfile = snapshot.data() as GuildUser;
+
+    // Founder exists - verify role is correct
+    if (isFounder && existingProfile.role !== 'founder') {
+      await FounderBootstrapService.bootstrap(
+        user.uid,
+        user.email || '',
+        user.displayName || 'Guild Founder'
+      );
+    }
+
+    return existingProfile;
+  }
+
+  // New user - create profile
+  const isFounderEmail = user.email?.toLowerCase() === 'thecentralguild@gmail.com';
+
+  // For founder - run full bootstrap
+  if (isFounderEmail) {
+    const bootstrapResult = await FounderBootstrapService.bootstrap(
+      user.uid,
+      user.email || '',
+      user.displayName || 'Guild Founder'
+    );
+
+    if (!bootstrapResult.success) {
+      console.error('Founder bootstrap failed:', bootstrapResult.message);
+    }
+
+    // Return the bootstrapped founder profile
+    return {
+      uid: user.uid,
+      email: user.email || '',
+      fullName: user.displayName || 'Guild Founder',
+      role: 'founder',
+      status: 'active',
+      verificationStatus: 'verified',
+      guildRank: 'S' as any,
+      reputationScore: 0,
+      experiencePoints: 0,
+      knowledgeEntriesCount: 0,
+      completedQuests: 0,
+      verifiedOutcomes: 0,
+      revenueEarned: 0,
+      activityHistory: ['Founder Account Created'] as any,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      archiveStatus: 'active',
+      jurisdiction: {
+        countryId: 'IN',
+        countryName: 'India',
+        stateId: 'NAT',
+        stateName: 'National',
+        cityId: 'HQ',
+        cityName: 'Headquarters'
+      }
+    } as GuildUser;
+  }
+
+  // Regular user profile
   const profile: Omit<GuildUser, 'jurisdiction'> & { jurisdiction?: Jurisdiction } = {
     uid: user.uid,
     email: user.email || '',
     fullName: user.displayName || user.email?.split('@')[0] || 'Guild Applicant',
     photoURL: user.photoURL ?? '',
-    role: user.email === 'thecentralguild@gmail.com' ? 'founder' : 'applicant',
+    role: 'applicant',
     status: 'active',
     city: jurisdiction?.cityName || '',
     contactInformation: '',
@@ -78,7 +143,10 @@ export async function registerWithEmail(
 ) {
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   const userRef = doc(db, 'users', credential.user.uid);
-  
+
+  // Auto-link to branch based on jurisdiction
+  const branch = await findBranchByJurisdiction(jurisdiction);
+
   const profile: GuildUser = {
     uid: credential.user.uid,
     email: email,
@@ -86,6 +154,8 @@ export async function registerWithEmail(
     role: email === 'thecentralguild@gmail.com' ? 'founder' : 'applicant',
     status: 'active',
     jurisdiction,
+    branchId: branch?.id,
+    branchName: branch?.name,
     skills,
     interests,
     ...additional,

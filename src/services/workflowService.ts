@@ -373,6 +373,7 @@ export async function approveSubmission(
     if (quest.isPaid && quest.paymentAmount) {
       await createLedgerRecord('revenueEvents', {
         source: `Quest Payment: ${quest.title}`,
+        category: 'quest_payout',
         questId: quest.id,
         opportunityId: quest.opportunityId,
         organizationId: quest.organizationId,

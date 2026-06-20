@@ -154,7 +154,7 @@ export function QuestRegistrationWizard() {
         guildQuestId: newId,
         assignedReceptionistId: profile.uid,
         assignedReceptionistName: profile.fullName || profile.email,
-        status: 'draft',
+        status: 'open',
         completenessScore: completeness.score,
         missingActions: completeness.missing.length ? completeness.missing : ['Assignments Needed'],
         assignedMembers: [],
