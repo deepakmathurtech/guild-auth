@@ -30,6 +30,7 @@ import type {
   Outcome,
   Quest,
   QuestSubmission,
+  QuestType,
   RevenueEvent,
   VerificationRecord,
   InteractionRecord,
@@ -260,4 +261,89 @@ export async function searchRecords<K extends keyof EntityMap>(
   const items = snapshot.docs.map((item) => item.data() as EntityMap[K]);
   
   return { items, lastVisible };
+}
+
+// ========== QUEST SLOT ENFORCEMENT (Phase 2: Max 1 Open Source + 2 Standard = 3 Total) ==========
+
+const MAX_OPEN_SOURCE_QUESTS = 1;
+const MAX_STANDARD_QUESTS = 2;
+const MAX_TOTAL_QUESTS = 3;
+
+export interface QuestSlots {
+  openSource: number;
+  standard: number;
+  total: number;
+}
+
+/**
+ * Get user's current active quest slot counts
+ */
+export async function getUserActiveQuestSlots(userId: string): Promise<QuestSlots> {
+  // Get quests where user is in acceptedMembers (active participant)
+  const q = query(
+    collection(db, 'quests'),
+    where('acceptedMembers', 'array-contains', userId),
+    where('status', 'in', ['assigned', 'inProgress', 'open'])
+  );
+  const snapshot = await getDocs(q);
+
+  let openSource = 0;
+  let standard = 0;
+
+  snapshot.forEach(doc => {
+    const quest = doc.data() as Quest;
+    if (quest.questType === 'openSource') {
+      openSource++;
+    } else {
+      standard++;
+    }
+  });
+
+  return { openSource, standard, total: openSource + standard };
+}
+
+/**
+ * Check if user can join a quest of given type - returns object with ability info
+ */
+export async function canJoinQuest(userId: string, questType: QuestType = 'standard'): Promise<{ canJoin: boolean; reason?: string; slots?: QuestSlots }> {
+  const slots = await getUserActiveQuestSlots(userId);
+
+  if (questType === 'openSource') {
+    if (slots.openSource >= MAX_OPEN_SOURCE_QUESTS) {
+      return {
+        canJoin: false,
+        reason: `You already have ${slots.openSource} Open Source quest(s). Maximum ${MAX_OPEN_SOURCE_QUESTS} allowed.`,
+        slots
+      };
+    }
+  } else {
+    if (slots.standard >= MAX_STANDARD_QUESTS) {
+      return {
+        canJoin: false,
+        reason: `You already have ${slots.standard} Standard quest(s). Maximum ${MAX_STANDARD_QUESTS} allowed.`,
+        slots
+      };
+    }
+  }
+
+  if (slots.total >= MAX_TOTAL_QUESTS) {
+    return {
+      canJoin: false,
+      reason: `You have ${slots.total} active quest(s). Maximum ${MAX_TOTAL_QUESTS} total allowed.`,
+      slots
+    };
+  }
+
+  return { canJoin: true, slots };
+}
+
+/**
+ * Validate user can join quest - throws error if cannot join
+ */
+export async function validateQuestSlot(userId: string, questType: QuestType = 'standard'): Promise<QuestSlots> {
+  const result = await canJoinQuest(userId, questType);
+  if (!result.canJoin) {
+    throw new Error(result.reason);
+  }
+  return result.slots!;
 }

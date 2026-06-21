@@ -293,6 +293,72 @@ export interface Opportunity extends AuditFields {
 
 export type QuestStatus = 'draft' | 'open' | 'assigned' | 'inProgress' | 'underReview' | 'completed' | 'closed' | 'cancelled' | 'archived';
 
+// QUEST TYPES - Phase 2 Open Source Quest expansion
+export type QuestType = 'standard' | 'openSource';
+export type QuestApplicationStatus = 'draft' | 'submitted' | 'underReview' | 'accepted' | 'rejected' | 'withdrawn';
+
+// Open Source Quest specific types
+export interface OpenSourceTeamRole {
+  id: string;
+  title: string;
+  description: string;
+  skillsRequired: string[];
+  openPositions: number;
+  priority: Priority;
+  teamLeadUserId?: string;
+  applicationQuestions?: { question: string; required: boolean }[];
+}
+
+export interface QuestApplication extends AuditFields {
+  id: string;
+  questId: string;
+  questTitle?: string;
+  questType: QuestType;
+  applicantId: string;
+  applicantName?: string;
+  roleId?: string;  // For Open Source quests - the role being applied for
+  roleTitle?: string;
+  motivation: string;
+  experience: string;
+  portfolioLinks?: string[];
+  customAnswers?: Record<string, string>;
+  status: QuestApplicationStatus;
+  reviewerId?: string;
+  reviewerNotes?: string;
+  reviewedAt?: string;
+}
+
+export interface QuestParticipant extends AuditFields {
+  id: string;
+  questId: string;
+  questType: QuestType;
+  userId: string;
+  userName?: string;
+  roleId?: string;
+  roleTitle?: string;
+  status: 'active' | 'completed' | 'withdrawn';
+  joinedAt: string;
+  contributionLevel?: number;
+  lastActiveAt?: string;
+}
+
+export interface QuestTeam {
+  id: string;
+  questId: string;
+  name: string;
+  announcements?: { id: string; title: string; content: string; createdAt: string; createdBy: string }[];
+  resources?: { id: string; title: string; url: string; description?: string }[];
+  milestones?: { id: string; title: string; status: 'pending' | 'inProgress' | 'completed'; dueDate?: string }[];
+}
+
+export interface QuestRelationship extends AuditFields {
+  id: string;
+  parentQuestId: string;
+  childQuestId: string;
+  relationshipType: 'milestone' | 'connected' | 'subquest';
+  description?: string;
+}
+
 export type QuestClassification = 'Internal Guild' | 'External Client' | 'Community Service' | 'Revenue Generating' | 'Training' | 'Partnership' | 'Research' | 'Emergency';
 export type VerificationLevel = 'Self Verified' | 'Receptionist Verified' | 'Manager Verified' | 'External Verified';
 
@@ -306,13 +372,47 @@ export interface QuestStakeholder {
 export interface Quest extends AuditFields {
   id: string; // Internal Firebase ID
   guildQuestId?: string; // e.g. GQ-2026-LDH-TECH-0001
-  
+
   // Linkage
   opportunityId?: string;
   needId?: string;
   organizationId?: string;
   organizationName?: string;
-  
+
+  // QUEST TYPE - Phase 2 Open Source Quest expansion (backward compatible - default 'standard')
+  questType?: QuestType;
+  // Open Source Quest specific configuration
+  openSourceConfig?: {
+    mission?: string;
+    goals?: string[];
+    teamRoles?: OpenSourceTeamRole[];
+    teamWorkspace?: QuestTeam;
+    parentQuestId?: string;
+    childQuestIds?: string[];
+    // Social & Promotion
+    socialLinks?: {
+      facebook?: string;
+      instagram?: string;
+      twitter?: string;
+      linkedin?: string;
+      youtube?: string;
+      website?: string;
+      donationLink?: string;
+    };
+    // Fundraising
+    fundraisingGoal?: number;
+    fundraisingCurrency?: string;
+    fundraisingTargetDate?: string;
+    fundsRaised?: number;
+    contributions?: {
+      contributorId: string;
+      contributorName: string;
+      amount: number;
+      message?: string;
+      donatedAt: string;
+    }[];
+  };
+
   // Auditing / Health
   completenessScore?: number;
   missingActions?: string[];
@@ -335,6 +435,7 @@ export interface Quest extends AuditFields {
   // Requirements
   requiredRank?: GuildRank | 'Applicant';
   requiredSkills?: string[];
+  knowledgeRequired?: boolean;
   estimatedHours?: number;
   priority?: Priority;
   questNature?: 'Volunteer' | 'Paid' | 'Internship' | 'Guild Duty' | 'Training' | 'Research' | 'Community Service' | 'Other';
@@ -418,10 +519,21 @@ export interface QuestSubmission extends AuditFields {
   id: string;
   questId: string;
   questTitle?: string;
+  questType?: QuestType;
   memberId: string;
+  memberName?: string;
+  roleId?: string;
+  roleTitle?: string;
+  // Report content
   report?: string;
+  summary?: string;
+  achievements?: string[];
+  outcomesProduced?: string[];
+  // Attachments and links
   evidenceUrls: string[];
   links: string[];
+  attachments?: { name: string; url: string; type: string }[];
+  // Status
   status: SubmissionStatus;
   reviewerId?: string;
   reviewerNotes?: string;
@@ -579,4 +691,53 @@ export interface DashboardMetric {
   label: string;
   value: string | number;
   hint?: string;
+}
+
+// ========== KNOWLEDGE BASE TYPES ==========
+export type KnowledgeCategory = 'bestPractices' | 'templates' | 'successStories' | 'failureReports' | 'researchPapers' | 'campaignRecords' | 'reports' | 'other';
+
+export interface KnowledgeArticle extends AuditFields {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  category: KnowledgeCategory;
+  tags: string[];
+  visibility: 'public' | 'guildMembers' | 'admins' | 'participants';
+  authorId: string;
+  authorName?: string;
+  questId?: string;
+  questTitle?: string;
+  viewCount: number;
+  downloadCount: number;
+  status: 'draft' | 'published';
+}
+
+// ========== CONTRIBUTION HISTORY TYPES ==========
+export interface ContributionHistory extends AuditFields {
+  id: string;
+  userId: string;
+  // Quest contributions
+  questsCompleted: number;
+  questsInProgress: number;
+  questsAsLead: number;
+  questsAsTeamMember: number;
+  // Open Source specific
+  openSourceContributions: number;
+  pullRequests: number;
+  issuesResolved: number;
+  // Fundraising
+  fundsRaised: number;
+  donationsReceived: number;
+  campaignsSupported: number;
+  // Reports
+  reportsSubmitted: number;
+  reportsApproved: number;
+  // Team roles history
+  teamRoles: { questId: string; role: string; questTitle: string; completedAt: string }[];
+  // Impact metrics
+  skillsGained: string[];
+  totalHoursContributed: number;
+  organizationsImpacted: number;
+  lastUpdatedAt: string;
 }

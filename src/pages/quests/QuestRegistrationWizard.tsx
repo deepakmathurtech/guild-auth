@@ -14,6 +14,7 @@ import type { Quest } from '../../types/guild';
 import { StatusBadge } from '../../components/StatusBadge';
 
 const STEPS = [
+  'QuestType',
   'Identity',
   'Source',
   'Location',
@@ -21,6 +22,7 @@ const STEPS = [
   'Financials',
   'Protocols',
   'Outcomes',
+  'Roles',
   'Registry'
 ];
 
@@ -59,6 +61,7 @@ export function QuestRegistrationWizard() {
   const formTopRef = useRef<HTMLDivElement>(null);
   
   const [form, setForm] = useState<Partial<Quest>>({
+    questType: 'standard',
     title: locationState.state?.title || '',
     description: locationState.state?.description || '',
     category: '',
@@ -226,10 +229,65 @@ export function QuestRegistrationWizard() {
           <div className="flex-1 p-6 md:p-8 lg:p-10">
             {step === 0 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <StepHeader 
-                  icon={<Sparkles className="w-6 h-6" />} 
-                  title="Mission Identity" 
-                  description="Establish the core identity of this quest. Use clear, objective-focused naming conventions." 
+                <StepHeader
+                  icon={<Sparkles className="w-6 h-6" />}
+                  title="Quest Classification"
+                  description="Select the type of quest: Standard guild missions or Open Source collaborative projects."
+                />
+                <div className="space-y-8">
+                  <div className="choice-grid">
+                    <button
+                      type="button"
+                      onClick={() => updateForm('questType', 'standard')}
+                      aria-pressed={form.questType === 'standard'}
+                      className={`
+                        choice-card
+                        ${form.questType === 'standard'
+                          ? 'bg-[var(--primary)] text-black border-[var(--primary)] shadow-md'
+                          : 'bg-[var(--card-subtle)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--text-secondary)]'}
+                      `}
+                    >
+                      <div className="text-lg font-bold mb-2">Standard Quest</div>
+                      <div className="text-xs opacity-80">Traditional guild mission with structured deliverables and individual or small team assignment.</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateForm('questType', 'openSource')}
+                      aria-pressed={form.questType === 'openSource'}
+                      className={`
+                        choice-card
+                        ${form.questType === 'openSource'
+                          ? 'bg-[var(--primary)] text-black border-[var(--primary)] shadow-md'
+                          : 'bg-[var(--card-subtle)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--text-secondary)]'}
+                      `}
+                    >
+                      <div className="text-lg font-bold mb-2">Open Source Quest</div>
+                      <div className="text-xs opacity-80">Collaborative open source project with team roles, leadership structure, and ongoing community engagement.</div>
+                    </button>
+                  </div>
+                  {form.questType === 'openSource' && (
+                    <div className="p-5 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/20">
+                      <p className="text-xs font-bold text-[var(--primary)] flex items-center gap-2">
+                        <Target className="w-3.5 h-3.5" /> Open Source Quest Features
+                      </p>
+                      <ul className="mt-3 text-xs text-[var(--text-secondary)] space-y-1">
+                        <li>• Team roles: Tech Lead, Fundraising, Social Media, Design, Content, Operations, Community Outreach</li>
+                        <li>• Team workspace with directory, leadership, collaboration tools</li>
+                        <li>• Parent/child quest hierarchy for milestones</li>
+                        <li>• Application workflow with role-specific applications</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {step === 1 && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                <StepHeader
+                  icon={<Sparkles className="w-6 h-6" />}
+                  title="Mission Identity"
+                  description="Establish the core identity of this quest. Use clear, objective-focused naming conventions."
                 />
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
@@ -261,9 +319,9 @@ export function QuestRegistrationWizard() {
               </div>
             )}
 
-            {step === 1 && (
+            {step === 2 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <StepHeader 
+                <StepHeader
                   icon={<UsersRound className="w-6 h-6" />} 
                   title="Source & Stakeholders" 
                   description="Identify the initiating entity and maintain administrative links to previous ledger entries." 
@@ -299,12 +357,12 @@ export function QuestRegistrationWizard() {
               </div>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <StepHeader 
-                  icon={<MapPin className="w-6 h-6" />} 
-                  title="Deployment Zone" 
-                  description="Specify the physical or digital theater of operations for this mission." 
+                <StepHeader
+                  icon={<MapPin className="w-6 h-6" />}
+                  title="Deployment Zone"
+                  description="Specify the physical or digital theater of operations for this mission."
                 />
                 <div className="space-y-8">
                   <FieldLabel label="Operational Mode" required>
@@ -339,12 +397,12 @@ export function QuestRegistrationWizard() {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <StepHeader 
-                  icon={<UsersRound className="w-6 h-6" />} 
-                  title="Personnel Requirements" 
-                  description="Define the human capital required for successful mission execution." 
+                <StepHeader
+                  icon={<UsersRound className="w-6 h-6" />}
+                  title="Personnel Requirements"
+                  description="Define the human capital required for successful mission execution."
                 />
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
@@ -382,12 +440,12 @@ export function QuestRegistrationWizard() {
               </div>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <StepHeader 
-                  icon={<IndianRupee className="w-6 h-6" />} 
-                  title="Financial Configuration" 
-                  description="Transparency in value and compensation is critical for Federation trust." 
+                <StepHeader
+                  icon={<IndianRupee className="w-6 h-6" />}
+                  title="Financial Configuration"
+                  description="Transparency in value and compensation is critical for Federation trust."
                 />
                 <div className="space-y-8">
                   <label className="flex items-center gap-4 p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 cursor-pointer group">
@@ -420,12 +478,12 @@ export function QuestRegistrationWizard() {
               </div>
             )}
 
-            {step === 5 && (
+            {step === 6 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <StepHeader 
-                  icon={<ShieldCheck className="w-6 h-6" />} 
-                  title="Protocols & Verification" 
-                  description="Define what constitutes success and how the ledger will verify it." 
+                <StepHeader
+                  icon={<ShieldCheck className="w-6 h-6" />}
+                  title="Protocols & Verification"
+                  description="Define what constitutes success and how the ledger will verify it."
                 />
                 <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
@@ -471,12 +529,12 @@ export function QuestRegistrationWizard() {
               </div>
             )}
 
-            {step === 6 && (
+            {step === 7 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <StepHeader 
-                  icon={<FileCheck2 className="w-6 h-6" />} 
-                  title="Success Acceptance" 
-                  description="Describe the tangible, verifiable changes that signify mission success." 
+                <StepHeader
+                  icon={<FileCheck2 className="w-6 h-6" />}
+                  title="Success Acceptance"
+                  description="Describe the tangible, verifiable changes that signify mission success."
                 />
                 <div className="space-y-8">
                   <FieldLabel label="Acceptance Criteria" required help="Plain language definition of 'Done'.">
@@ -489,12 +547,12 @@ export function QuestRegistrationWizard() {
               </div>
             )}
 
-            {step === 7 && (
+            {step === 8 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-                <StepHeader 
-                  icon={<ClipboardCheck className="w-6 h-6" />} 
-                  title="Registry Finalization" 
-                  description="Execute a final protocol check before committing this mission to the Federation Ledger." 
+                <StepHeader
+                  icon={<ClipboardCheck className="w-6 h-6" />}
+                  title="Registry Finalization"
+                  description="Execute a final protocol check before committing this mission to the Federation Ledger."
                 />
                 <div className="grid gap-6 md:grid-cols-2 mb-10">
                   <div className="panel bg-[var(--card-subtle)] p-6 space-y-6">
