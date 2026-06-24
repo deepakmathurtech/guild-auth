@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, useRouteError, isRouteErrorResponse } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppShell } from './components/AppShell';
@@ -91,6 +91,7 @@ const centralAdminRoles: GuildRole[] = [
 ];
 
 const router = createBrowserRouter([
+  { path: '/', element: <Navigate to="/admin" replace /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/admin', element: <Navigate to="/admin/" replace /> },
   {

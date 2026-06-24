@@ -115,10 +115,12 @@ export async function ensureUserProfile(user: User, jurisdiction?: Jurisdiction)
     jurisdiction: jurisdiction || {
       countryId: 'india',
       countryName: 'India',
-      stateId: 'unknown',
-      stateName: 'Unknown',
-      cityId: 'unknown',
-      cityName: 'Unknown'
+      stateId: 'punjab',
+      stateName: 'Punjab',
+      cityId: 'ludhiana',
+      cityName: 'Ludhiana',
+      branchId: 'ludhiana-hq',
+      branchName: 'The Guild - Ludhiana'
     }
   };
 
