@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getRecord, updateLedgerRecord, addInteraction, subscribeRecords, listRecords } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
-import type { Organization, Quest, InteractionRecord, GuildUser } from '../../types/guild';
+import type { Organization, Quest, InteractionRecord, GuildUser, RevenueEvent } from '../../types/guild';
 import { StatusBadge } from '../../components/StatusBadge';
-import { where, orderBy, limit } from 'firebase/firestore';
+import { where, orderBy, limit, query } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 import {
   Phone, Mail, MapPin, User, History,
   MessageSquare, Plus, ArrowLeftRight, Save,
   ChevronLeft, ExternalLink, Shield, Globe,
-  MoreVertical, Calendar, UserPlus, Star, Building2
+  MoreVertical, Calendar, UserPlus, Star, Building2,
+  DollarSign, FileCheck, Clock
 } from 'lucide-react';
 
 export function OrganizationDetailsPage() {
@@ -24,14 +27,40 @@ export function OrganizationDetailsPage() {
   const [isLoggingInteraction, setIsLoggingInteraction] = useState(false);
   const [isTransferringOwnership, setIsTransferringOwnership] = useState(false);
   const [interactionForm, setInteractionForm] = useState({ summary: '', type: 'note' as any });
+  // Revenue stats
+  const [revenueEvents, setRevenueEvents] = useState<RevenueEvent[]>([]);
+  const [revenueStats, setRevenueStats] = useState({ total: 0, paidQuests: 0, outstanding: 0, guildRevenue: 0 });
 
   useEffect(() => {
     if (!id) return;
     getRecord('organizations', id).then(setOrg);
     const unsubQuests = subscribeRecords('quests', setQuests, [where('organizationId', '==', id), where('archiveStatus', '==', 'active')]);
     const unsubInter = subscribeRecords('interactions', setInteractions, [where('organizationId', '==', id), orderBy('createdAt', 'desc'), limit(50)]);
-    
+
     listRecords('users', [where('role', 'in', ['receptionist', 'guildManager', 'guildAdmin'])]).then(res => setReceptionists(res as GuildUser[]));
+
+    // Load revenue events for this organization
+    const revenueQuery = query(collection(db, 'revenueEvents'), where('organizationId', '==', id));
+    getDocs(revenueQuery).then(snap => {
+      const events = snap.docs.map(d => ({ id: d.id, ...d.data() } as RevenueEvent));
+      setRevenueEvents(events);
+
+      // Calculate stats
+      const total = events.reduce((sum, e) => sum + (e.amount || 0), 0);
+      const guildRevenue = events.filter(e => e.category === 'quest_payout').reduce((sum, e) => sum + (e.amount || 0), 0);
+      setRevenueStats(prev => ({ ...prev, total, guildRevenue }));
+    });
+
+    // Get paid quests count - simplified to avoid type issues
+    const questsQuery = query(collection(db, 'quests'), where('organizationId', '==', id));
+    getDocs(questsQuery).then(snap => {
+      const paidQuests = snap.docs.map(d => d.data() as Quest).filter(q => q.isPaid);
+      const completedPaidQuests = paidQuests.filter(q => q.status === 'completed').length;
+      const totalPaidAmount = paidQuests.reduce((sum, q) => sum + (q.paymentAmount || 0), 0);
+      const totalPaid = paidQuests.reduce((sum, q) => sum + (q.memberPayout || 0), 0);
+      const outstanding = totalPaidAmount - totalPaid;
+      setRevenueStats(prev => ({ ...prev, paidQuests: completedPaidQuests, outstanding }));
+    });
 
     return () => { unsubQuests(); unsubInter(); };
   }, [id]);
@@ -322,6 +351,31 @@ export function OrganizationDetailsPage() {
                 <div className="p-3 rounded-xl bg-black/40 border border-white/5">
                   <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Outcomes</p>
                   <p className="text-xl font-bold text-white">{org.outcomesDelivered || 0}</p>
+                </div>
+
+                {/* Revenue Section */}
+                <div className="col-span-2 mt-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+                  <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <DollarSign size={12} /> Revenue History
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-white/40">Paid Quests</p>
+                      <p className="font-bold text-emerald-400">{revenueStats.paidQuests}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/40">Guild Revenue</p>
+                      <p className="font-bold text-white">₹{revenueStats.guildRevenue.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/40">Outstanding</p>
+                      <p className="font-bold text-amber-400">₹{revenueStats.outstanding.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-white/40">Total Paid</p>
+                      <p className="font-bold text-white">₹{revenueStats.total.toLocaleString()}</p>
+                    </div>
+                  </div>
                 </div>
              </div>
 

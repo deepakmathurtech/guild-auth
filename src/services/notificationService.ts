@@ -103,7 +103,7 @@ export const NotificationService = {
       read: false,
       channel: 'inApp',
       futureChannels: ['email'],
-      actionUrl: options.actionUrl,
+      ...(options.actionUrl && { actionUrl: options.actionUrl }),
       aggregatedCount: 1,
       lastOccurrence: new Date().toISOString()
     };

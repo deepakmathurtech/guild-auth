@@ -39,7 +39,8 @@ import type {
   TransferRecord,
   LeaveRecord,
   EscalationRecord,
-  DisputeRecord
+  DisputeRecord,
+  PaymentVerification
 } from '../types/guild';
 
 export type EntityMap = {
@@ -61,6 +62,7 @@ export type EntityMap = {
   leaveRecords: LeaveRecord;
   escalationRecords: EscalationRecord;
   disputeRecords: DisputeRecord;
+  paymentVerifications: PaymentVerification;
 };
 
 export const ledgerCollections: LedgerCollection[] = [

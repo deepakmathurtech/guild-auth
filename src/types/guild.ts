@@ -21,13 +21,13 @@ export type UserStatus =
   | 'removed' 
   | 'archived';
 
-export type VerificationStatus = 'pending' | 'verified' | 'rejected';
+export type VerificationStatus = 'pending' | 'verified' | 'rejected' | 'changes_requested' | 'approved';
 export type ArchiveStatus = 'active' | 'archived';
 export type OrganizationStatus = 'new' | 'contacted' | 'active' | 'partner' | 'inactive';
 export type GuildRank = 'Applicant' | 'F' | 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
 export type NeedStatus = 'open' | 'matching' | 'assigned' | 'inProgress' | 'completed' | 'converted' | 'archived';
 export type OpportunityStatus = 'draft' | 'open' | 'matching' | 'assigned' | 'inProgress' | 'completed' | 'archived';
-export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'changes_requested';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface SuccessionPlan {
@@ -291,7 +291,7 @@ export interface Opportunity extends AuditFields {
   status: OpportunityStatus;
 }
 
-export type QuestStatus = 'draft' | 'open' | 'assigned' | 'inProgress' | 'underReview' | 'completed' | 'closed' | 'cancelled' | 'archived';
+export type QuestStatus = 'draft' | 'open' | 'assigned' | 'inProgress' | 'underReview' | 'paymentPending' | 'completed' | 'closed' | 'cancelled' | 'archived';
 
 // QUEST TYPES - Phase 2 Open Source Quest expansion
 export type QuestType = 'standard' | 'openSource';
@@ -474,6 +474,9 @@ export interface Quest extends AuditFields {
   verificationLevel?: VerificationLevel;
   verifierId?: string;
   verifierName?: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  verificationNotes?: string;
   expectedOutcome?: string;
   actualOutcome?: string;
   outcomeStatus?: 'Success' | 'Partial Success' | 'Failed';
@@ -484,7 +487,6 @@ export interface Quest extends AuditFields {
   rewards: string;
   reputationPoints: number;
   experienceReward?: number;
-  knowledgeRequired?: boolean;
   knowledgeSubmitted?: boolean;
   knowledgeApproved?: boolean;
   knowledgeLink?: string;
@@ -509,6 +511,11 @@ export interface Quest extends AuditFields {
     knowledgeSubmitted?: string;
     revenueRecorded?: string;
   };
+
+  // Working Session
+  startedAt?: string;
+  completedAt?: string;
+  closedAt?: string;
 
   status: QuestStatus;
 }
@@ -550,6 +557,38 @@ export interface VerificationRecord extends AuditFields {
   decision: VerificationStatus;
   timestamp: string;
   notes?: string;
+}
+
+export interface PaymentVerification extends AuditFields {
+  id: string;
+  questId: string;
+  questTitle?: string;
+  memberId: string;
+  memberName?: string;
+  organizationId: string;
+  organizationName?: string;
+  // Financial amounts
+  grossAmount: number;
+  paymentAmount: number; // Same as grossAmount for backwards compatibility
+  currency: string;
+  guildRevenue: number;
+  memberRevenue: number;
+  baseGuildPercentage: number;
+  roundingAdjustment: number;
+  // Payment details
+  paymentMethod: 'UPI' | 'Bank Transfer' | 'Razorpay' | 'Stripe' | 'Cash Receipt' | 'Custom' | 'Guild Treasury';
+  paymentReferenceId?: string;
+  transactionId?: string;
+  invoiceNumber?: string;
+  receiptNumber?: string;
+  // Verification status
+  paymentReceived: boolean;
+  verifiedBy?: string;
+  verifiedByName?: string;
+  verifiedAt?: string;
+  verificationNotes?: string;
+  whoPaid?: string;
+  paymentDate?: string;
 }
 
 export interface Outcome extends AuditFields {
@@ -651,6 +690,9 @@ export type NotificationType =
   | "submission_pending"
   | "opportunity_completed"
   | "revenue_recorded"
+  | "payment_verified"
+  | "submission_approved"
+  | "payment_pending"
   | "application_submitted"
   | "application_approved"
   | "application_rejected"

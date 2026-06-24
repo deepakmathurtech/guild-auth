@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getRecord, subscribeRecords, updateLedgerRecord } from '../../lib/repository';
 import { useAuth } from '../../context/AuthContext';
 import type { Quest, QuestSubmission, GuildUser, Outcome, KnowledgeRecord, RevenueEvent, Need, Opportunity } from '../../types/guild';
-import { where } from 'firebase/firestore';
+import { where, doc, getDoc, updateDoc, collection, query, where as firestoreWhere, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { MemberSearch } from '../../components/MemberSearch';
 import { hasRole } from '../../lib/rbac';
 import { 
@@ -15,6 +15,7 @@ import {
   ExternalLink, BarChart3, Clock, UserPlus, Flag
 } from 'lucide-react';
 import { assignMemberToQuest } from '../../services/workflowService';
+import { db } from '../../lib/firebase';
 
 // Reusable Section Component
 function CollapsibleSection({ title, icon, children, defaultOpen = false, accent = 'blue' }: { title: string, icon: React.ReactNode, children: React.ReactNode, defaultOpen?: boolean, accent?: string }) {
@@ -125,12 +126,69 @@ export function QuestDetailsPage() {
   async function handleAcceptApplicant(uid: string) {
     if (!quest || !profile || !canManageQuest) return;
     try {
+      // First, assign member to quest (updates quest.assignedMembers)
       await assignMemberToQuest(quest.id, uid, profile);
+      console.log('[QuestDetails] Assigned member to quest');
+
+      // Remove from applicants list
       const newApplicants = (quest.applicants || []).filter(a => a !== uid);
       await updateLedgerRecord('quests', quest.id, { applicants: newApplicants }, profile, `Accepted Applicant ${uid}`);
+      console.log('[QuestDetails] Removed from applicants');
+
+      // FIND the application and update its status
+      const appQuery = query(
+        collection(db, 'questApplications'),
+        firestoreWhere('questId', '==', quest.id),
+        firestoreWhere('applicantId', '==', uid)
+      );
+      const appSnap = await getDocs(appQuery);
+      if (!appSnap.empty) {
+        const appDoc = appSnap.docs[0];
+        const appData = appDoc.data();
+        console.log('[QuestDetails] Found application:', appDoc.id, 'current status:', appData.status);
+
+        // Update application status to accepted
+        await updateDoc(doc(db, 'questApplications', appDoc.id), {
+          status: 'accepted',
+          reviewerId: profile.uid,
+          reviewerNotes: 'Accepted via Enlist button',
+          reviewedAt: new Date().toISOString()
+        });
+        console.log('[QuestDetails] Updated application status to accepted');
+      } else {
+        console.warn('[QuestDetails] No application found for this user');
+      }
+
+      // CREATE participation record
+      const participationId = `part_${Date.now()}_${uid.slice(0, 8)}`;
+      const participationData = {
+        id: participationId,
+        questId: quest.id,
+        questTitle: quest.title,
+        applicationId: appSnap.empty ? null : appSnap.docs[0].id,
+        userId: uid,
+        questType: quest.questType || 'standard',
+        status: 'accepted',
+        completionStatus: 'notStarted',
+        reportStatus: 'notStarted',
+        acceptedAt: new Date().toISOString(),
+        archiveStatus: 'active',
+        jurisdiction: quest.jurisdiction || { cityName: '', stateName: '', countryName: '' },
+        createdAt: new Date().toISOString(),
+        createdBy: profile.uid,
+        updatedAt: new Date().toISOString(),
+        updatedBy: profile.uid
+      };
+      await setDoc(doc(db, 'questParticipations', participationId), participationData);
+      console.log('[QuestDetails] Created participation record:', participationId);
+
+      // Refresh quest data
       const updated = await getRecord('quests', quest.id);
       if (updated) setQuest(updated as Quest);
+
+      alert('Member enlisted successfully!');
     } catch (err: any) {
+      console.error('[QuestDetails] Enlist error:', err);
       alert(err.message);
     }
   }

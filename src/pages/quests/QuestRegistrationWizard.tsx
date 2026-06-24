@@ -1,11 +1,11 @@
 ﻿import type { ReactNode } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  CheckCircle2, FileCheck2, IndianRupee, 
+import {
+  CheckCircle2, FileCheck2, IndianRupee,
   MapPin, ShieldCheck, Sparkles, UsersRound,
   ChevronRight, ChevronLeft, Target,
-  ClipboardCheck
+  ClipboardCheck, UserCheck, Building2
 } from 'lucide-react';
 import { createLedgerRecord, detectDuplicates } from '../../lib/repository';
 import { generateGuildQuestId } from '../../services/workflowService';
@@ -59,7 +59,8 @@ export function QuestRegistrationWizard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const formTopRef = useRef<HTMLDivElement>(null);
-  
+
+  // Auto-assign receptionist from current user profile
   const [form, setForm] = useState<Partial<Quest>>({
     questType: 'standard',
     title: locationState.state?.title || '',
@@ -124,6 +125,7 @@ export function QuestRegistrationWizard() {
     if (form.verificationMethod && form.verificationLevel) score += 10; else missing.push('Set verification method');
     if (form.expectedOutcome?.trim()) score += 15; else missing.push('Define expected outcome');
     if (form.rewards?.trim()) score += 5; else missing.push('Define member reward');
+    if (form.assignedReceptionistId && form.assignedReceptionistName) score += 10; else missing.push('Assign branch receptionist');
     return { score, missing };
   }, [form]);
 
@@ -548,6 +550,59 @@ export function QuestRegistrationWizard() {
             )}
 
             {step === 8 && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                <StepHeader
+                  icon={<UserCheck className="w-6 h-6" />}
+                  title="Operational Ownership"
+                  description="Assign a branch and receptionist to oversee this mission. Required for Federation compliance."
+                />
+                <div className="space-y-8">
+                  <div className="panel bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl">
+                    <div className="flex items-start gap-3">
+                      <Building2 className="w-5 h-5 text-amber-500 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-amber-500">Mandatory Assignment</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">
+                          Every quest must be linked to a branch and assigned receptionist for jurisdiction and oversight.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <FieldLabel label="Assigned Branch" required help="Branch responsible for this quest's jurisdiction">
+                    <div className="space-y-2">
+                      <input
+                        value={profile?.jurisdiction.cityName || ''}
+                        disabled
+                        className="opacity-70"
+                        placeholder="Branch (auto-detected from your profile)"
+                      />
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Detected from your profile jurisdiction: {profile?.jurisdiction.cityName}, {profile?.jurisdiction.stateName}
+                      </p>
+                    </div>
+                  </FieldLabel>
+                  <FieldLabel label="Assigned Receptionist" required help="Primary operator responsible for quest oversight">
+                    <input
+                      value={form.assignedReceptionistName || profile?.fullName || profile?.email || ''}
+                      onChange={e => updateForm('assignedReceptionistName', e.target.value)}
+                      placeholder="Receptionist name"
+                    />
+                    <input
+                      type="hidden"
+                      value={form.assignedReceptionistId || profile?.uid || ''}
+                      onChange={e => updateForm('assignedReceptionistId', e.target.value)}
+                    />
+                  </FieldLabel>
+                  <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="flex items-center gap-2 text-emerald-500 text-sm font-bold">
+                      <CheckCircle2 className="w-4 h-4" /> Operational ownership assigned
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 9 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-500">
                 <StepHeader
                   icon={<ClipboardCheck className="w-6 h-6" />}

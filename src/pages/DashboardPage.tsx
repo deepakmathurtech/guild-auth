@@ -48,7 +48,7 @@ export function DashboardPage() {
   const orgsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
   const needsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
   const oppsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
-  const subsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
+  const subsConstraints = useMemo(() => [...jurisConstraints, where('status', '==', 'pending'), limit(200)], [jurisConstraints]);
   const questsConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
   const outcomesConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
   const revenueConstraints = useMemo(() => [...jurisConstraints, limit(200)], [jurisConstraints]);
