@@ -504,14 +504,21 @@ export async function verifyPayment(
   }
 
   // Create revenue event only if payment received
-  if (verificationData.paymentReceived && quest.organizationId) {
+  if (verificationData.paymentReceived) {
+    // Get organization name from quest or fetch from organization record
+    let orgName = quest.organizationName || quest.sourceName || '';
+    if (!orgName && quest.organizationId) {
+      const org = await getRecord('organizations', quest.organizationId);
+      if (org) orgName = org.name;
+    }
+
     await createLedgerRecord('revenueEvents', {
       source: `Quest Payment: ${quest.title}`,
       category: 'quest_payout',
       questId: quest.id,
       opportunityId: quest.opportunityId,
-      organizationId: quest.organizationId,
-      organizationName: quest.organizationName,
+      organizationId: quest.organizationId || '',
+      organizationName: orgName,
       amount: payout.guildRevenue,
       date: verificationData.paymentDate || new Date().toISOString(),
       participants: quest.assignedMembers || []
