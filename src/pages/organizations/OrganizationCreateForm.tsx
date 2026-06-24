@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { createLedgerRecord, detectDuplicates } from '../../lib/repository';
 import { findBranchByJurisdiction } from '../../services/branchService';
@@ -10,6 +10,10 @@ interface Props {
   onCancel: () => void;
 }
 
+function getDefaultJurisdictionCityName(profile: any): string {
+  return profile?.jurisdiction?.cityName || profile?.city || '';
+}
+
 export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
   const { profile } = useAuth();
   const [form, setForm] = useState({
@@ -18,17 +22,40 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
     contactPerson: '',
     phone: '',
     email: '',
-    city: profile?.jurisdiction.cityName || '',
+    city: getDefaultJurisdictionCityName(profile),
     address: '',
     description: '',
     // Owner email for organization login/claim
     ownerEmail: ''
   });
   const [status, setStatus] = useState('');
+  const [errors, setErrors] = useState<string[]>([]);
+
+  // Check if profile has valid jurisdiction data
+  const isProfileValid = profile?.jurisdiction?.cityId && profile?.jurisdiction?.stateId && profile?.jurisdiction?.countryId;
+
+  // Update city when profile loads
+  useEffect(() => {
+    if (profile && isProfileValid && !form.city) {
+      setForm(prev => ({ ...prev, city: getDefaultJurisdictionCityName(profile) }));
+    }
+  }, [profile, isProfileValid]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!profile) return;
+
+    // Validate required fields
+    const validationErrors: string[] = [];
+    if (!form.name.trim()) validationErrors.push('Organization name is required');
+    if (!form.email.trim()) validationErrors.push('Email is required');
+    if (!isProfileValid) validationErrors.push('Your profile is missing jurisdiction data. Please complete your profile first.');
+
+    if (validationErrors.length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
     setStatus('Synchronizing Ledger...');
     try {
       // Stress Test: Duplicate Detection
@@ -50,10 +77,11 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
         relationshipNotes: '',
         jurisdiction: profile.jurisdiction,
         // Link to branch
-        branchId: branch?.id,
-        branchName: branch?.name,
-        // Auto-assign to receptionist if creating as receptionist
-        assignedReceptionistId: profile.role === 'receptionist' ? profile.uid : undefined,
+        branchId: branch?.id || profile.branchId,
+        branchName: branch?.name || profile.branchName,
+        // Auto-assign: inherit from creator or use profile data
+        assignedReceptionistId: profile.uid,
+        assignedReceptionistName: profile.fullName || profile.email,
         // Owner info for organization login
         ownerEmail: form.ownerEmail || form.email,
         ownerId: undefined // Will be set when org claims ownership
@@ -64,6 +92,9 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
       setStatus(err.message || 'Save failed.');
     }
   }
+
+  // Render errors inline if any
+  const hasErrors = errors.length > 0 || status.includes('CRITICAL') || status.includes('failed');
 
   return (
     <div className="panel !p-0 overflow-hidden shadow-[var(--shadow-lg)] border-[var(--primary)]/20 animate-in slide-in-from-top-4 duration-500">
@@ -169,10 +200,20 @@ export function OrganizationCreateForm({ onSuccess, onCancel }: Props) {
           </div>
           <div className="flex gap-4 w-full md:w-auto">
             <button className="ghost flex-1 md:flex-none" type="button" onClick={onCancel}>Cancel</button>
-            <button className="primary flex-1 md:flex-none !px-10" type="submit" disabled={!!status}>
+            <button className="primary flex-1 md:flex-none !px-10" type="submit" disabled={!!status || !isProfileValid}>
               Save Organization <ChevronRight className="w-4 h-4 ml-1" />
             </button>
           </div>
+          {hasErrors && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-4">
+              {errors.map((err, idx) => (
+                <p key={idx} className="text-xs text-red-600">{err}</p>
+              ))}
+              {status && !errors.includes(status) && (
+                <p className="text-xs text-red-600">{status}</p>
+              )}
+            </div>
+          )}
         </div>
       </form>
     </div>

@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   BookOpen, BriefcaseBusiness, ClipboardCheck, Database, Flag,
   IndianRupee, LayoutDashboard, LogOut, Menu, Moon, Shield,
-  Sparkles, Sun, UsersRound, X, MapPin, Network
+  Sparkles, Sun, UsersRound, User, X, MapPin, Network
 } from 'lucide-react';
 import { logout } from '../lib/auth';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +18,7 @@ const nav = [
   { group: 'Intake', to: '/organizations', label: 'Organizations', icon: BriefcaseBusiness, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Intake', to: '/needs', label: 'Needs', icon: Flag, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Intake', to: '/members', label: 'Members', icon: UsersRound, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
+  { group: 'Intake', to: '/profile', label: 'My Profile', icon: User, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Operations', to: '/opportunities', label: 'Opportunities', icon: Sparkles, roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Operations', to: '/quests', label: 'Quests', icon: ClipboardCheck, roles: ['member', 'contributor', 'receptionistCandidate', 'receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
   { group: 'Operations', to: '/submissions', label: 'Submissions', icon: ClipboardCheck, roles: ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster', 'nationalGuildMaster', 'guildFounder', 'founder'] },
@@ -111,7 +112,7 @@ export function AppShell() {
         </nav>
 
         <div className="mt-auto pt-6 border-t border-[var(--border)] px-2">
-          <div className="flex items-center gap-3 p-2 rounded-xl bg-[var(--card-subtle)]/50 mb-4">
+          <button onClick={() => navigate('/profile')} className="flex items-center gap-3 p-2 rounded-xl bg-[var(--card-subtle)]/50 mb-4 w-full text-left hover:bg-[var(--card-subtle)] transition-colors">
             <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] text-xs font-bold">
               {profile?.fullName.charAt(0)}
             </div>
@@ -122,7 +123,7 @@ export function AppShell() {
             <button onClick={handleLogout} className="icon-button !h-8 !w-8 !bg-transparent hover:!bg-[var(--error)]/10 hover:!text-[var(--error)]" aria-label="Log out">
               <LogOut className="w-4 h-4" aria-hidden="true" />
             </button>
-          </div>
+          </button>
         </div>
       </aside>
 

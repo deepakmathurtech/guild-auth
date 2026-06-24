@@ -1,17 +1,19 @@
 ﻿import type { ReactNode } from 'react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import {
   CheckCircle2, FileCheck2, IndianRupee,
   MapPin, ShieldCheck, Sparkles, UsersRound,
   ChevronRight, ChevronLeft, Target,
-  ClipboardCheck, UserCheck, Building2
+  ClipboardCheck, UserCheck, Building2, Search, X
 } from 'lucide-react';
 import { createLedgerRecord, detectDuplicates } from '../../lib/repository';
 import { generateGuildQuestId } from '../../services/workflowService';
 import { calculateGuildShare } from '../../lib/financials';
 import { useAuth } from '../../context/AuthContext';
-import type { Quest } from '../../types/guild';
+import { db } from '../../lib/firebase';
+import type { Quest, Organization } from '../../types/guild';
 import { StatusBadge } from '../../components/StatusBadge';
 
 const STEPS = [
@@ -61,6 +63,54 @@ export function QuestRegistrationWizard() {
   const [error, setError] = useState('');
   const formTopRef = useRef<HTMLDivElement>(null);
 
+  // Organization search functionality
+  const [orgSearchQuery, setOrgSearchQuery] = useState('');
+  const [orgSearchResults, setOrgSearchResults] = useState<Organization[]>([]);
+  const [searchingOrgs, setSearchingOrgs] = useState(false);
+  const [showOrgPicker, setShowOrgPicker] = useState(false);
+
+  // Fetch organizations when search query changes
+  useEffect(() => {
+    if (orgSearchQuery.length < 2) {
+      setOrgSearchResults([]);
+      return;
+    }
+
+    async function searchOrgs() {
+      setSearchingOrgs(true);
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'organizations'),
+          where('archiveStatus', '==', 'active'),
+          limit(20)
+        ));
+        const orgs = snap.docs
+          .map(d => ({ id: d.id, ...d.data() as any } as Organization))
+          .filter(o =>
+            o.name?.toLowerCase().includes(orgSearchQuery.toLowerCase()) ||
+            o.category?.toLowerCase().includes(orgSearchQuery.toLowerCase()) ||
+            o.city?.toLowerCase().includes(orgSearchQuery.toLowerCase())
+          );
+        setOrgSearchResults(orgs);
+      } catch (err) {
+        console.error('Org search error:', err);
+      } finally {
+        setSearchingOrgs(false);
+      }
+    }
+
+    const timer = setTimeout(searchOrgs, 300);
+    return () => clearTimeout(timer);
+  }, [orgSearchQuery]);
+
+  function selectOrganization(org: Organization) {
+    updateForm('organizationId', org.id);
+    updateForm('sourceName', org.name);
+    setOrgSearchQuery(org.name);
+    setShowOrgPicker(false);
+    setOrgSearchResults([]);
+  }
+
   // Auto-assign receptionist from current user profile
   const [form, setForm] = useState<Partial<Quest>>({
     questType: 'standard',
@@ -77,10 +127,10 @@ export function QuestRegistrationWizard() {
     sourceContactPerson: '',
     sourcePhone: '',
     sourceEmail: '',
-    location: { 
-      city: profile?.jurisdiction.cityName || '', 
-      state: profile?.jurisdiction.stateName || '', 
-      country: 'India' 
+    location: {
+      city: locationState.state?.city || profile?.jurisdiction.cityName || '',
+      state: locationState.state?.location || profile?.jurisdiction.stateName || '',
+      country: 'India'
     },
     mode: 'Remote',
     requiredRank: 'Applicant',
@@ -337,8 +387,73 @@ export function QuestRegistrationWizard() {
                       </select>
                     </FieldLabel>
                     <FieldLabel label="Legal Entity Name" required help="Full name of the requesting entity.">
-                      <input value={form.sourceName || ''} onChange={e => updateForm('sourceName', e.target.value)} placeholder="e.g. Central Bank of India" />
+                      <div className="relative">
+                        <input
+                          value={orgSearchQuery || form.sourceName || ''}
+                          onChange={e => {
+                            setOrgSearchQuery(e.target.value);
+                            updateForm('sourceName', e.target.value);
+                            if (e.target.value.length >= 2) {
+                              setShowOrgPicker(true);
+                            }
+                          }}
+                          onFocus={() => {
+                            const val = (document.activeElement as HTMLInputElement)?.value;
+                            if (val && val.length >= 2) setShowOrgPicker(true);
+                          }}
+                          onBlur={() => setTimeout(() => setShowOrgPicker(false), 200)}
+                          placeholder="Search or enter organization name..."
+                        />
+                        {orgSearchQuery && (
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text)]"
+                            onClick={() => {
+                              setOrgSearchQuery('');
+                              updateForm('organizationId', '');
+                              updateForm('sourceName', '');
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                        {showOrgPicker && orgSearchResults.length > 0 && (
+                          <div className="absolute z-50 w-full mt-1 bg-[var(--bg)] border border-[var(--border)] rounded-lg shadow-lg max-h-60 overflow-auto">
+                            {orgSearchResults.map(org => (
+                              <button
+                                key={org.id}
+                                type="button"
+                                className="w-full px-4 py-3 text-left hover:bg-[var(--card-subtle)] flex items-center gap-3 border-b border-[var(--border)] last:border-0"
+                                onClick={() => selectOrganization(org)}
+                              >
+                                <Building2 className="w-4 h-4 text-[var(--primary)]" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold truncate">{org.name}</p>
+                                  <p className="text-[10px] text-[var(--text-muted)] truncate">
+                                    {org.category} &middot; {org.city || 'Location TBD'}
+                                  </p>
+                                </div>
+                                {org.verificationStatus === 'verified' && (
+                                  <span className="badge !py-0.5 !px-1.5 !text-[8px] bg-emerald-500/20 text-emerald-500 border-0">
+                                    Verified
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {showOrgPicker && searchingOrgs && (
+                          <div className="absolute z-50 w-full mt-1 p-4 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-center text-sm text-[var(--text-muted)]">
+                            Searching organizations...
+                          </div>
+                        )}
+                      </div>
                     </FieldLabel>
+                    {form.organizationId && (
+                      <div className="mt-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs font-medium text-emerald-600">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Organization linked
+                      </div>
+                    )}
                     <FieldLabel label="Primary Contact Person">
                       <input value={form.sourceContactPerson || ''} onChange={e => updateForm('sourceContactPerson', e.target.value)} placeholder="Full Name" />
                     </FieldLabel>
@@ -458,6 +573,20 @@ export function QuestRegistrationWizard() {
                        <p className="text-xs text-emerald-600/70">Personnel will receive direct monetary compensation upon verification.</p>
                     </div>
                   </label>
+
+                  {form.isPaid && !form.organizationId && (
+                    <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                      <div className="flex items-start gap-3">
+                        <Target className="w-5 h-5 text-rose-500 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-bold text-rose-500">Funding Source Required</p>
+                          <p className="text-xs text-rose-600/80 mt-1">
+                            Paid deployments require a verified organization as the funding source. Please select an organization in the Source &amp; Stakeholders step.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {form.isPaid && (
                     <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">

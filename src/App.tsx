@@ -25,6 +25,7 @@ import { BranchesPage } from './pages/BranchesPage';
 import HierarchicalBranchesPage from './pages/HierarchicalBranchesPage';
 import { RevenueDashboard } from './pages/revenue/RevenueDashboard';
 import { ReceptionistProfilePage } from './pages/ReceptionistProfilePage';
+import { EditMemberProfilePage } from './pages/EditMemberProfilePage';
 import { GuildMasterProfilePage } from './pages/GuildMasterProfilePage';
 import { MemberManagementPage } from './pages/MemberManagementPage';
 import { UserDirectoryPage } from './pages/UserDirectoryPage';
@@ -110,6 +111,9 @@ const router = createBrowserRouter([
           { path: 'outcomes', element: <OutcomePage /> },
           { path: 'members', element: <MembersPage /> },
           { path: 'members/:id', element: <ReceptionistProfilePage /> },
+          { path: 'members/:id/edit', element: <EditMemberProfilePage /> },
+          { path: 'profile', element: <ReceptionistProfilePage /> },
+          { path: 'profile/edit', element: <EditMemberProfilePage /> },
           { path: 'verification', element: <WorkbenchPage kind="verification" /> },
           { path: 'revenue', element: <WorkbenchPage kind="revenue" /> }
         ]

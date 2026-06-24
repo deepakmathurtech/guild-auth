@@ -19,6 +19,14 @@ const ROLE_UPGRADES = [
   { value: 'cityGuildMaster', label: 'City GM' }
 ];
 
+// Branch options for receptionist promotion
+const BRANCH_OPTIONS = [
+  { id: 'ludhiana', name: 'The Guild - Ludhiana' },
+  { id: 'chandigarh', name: 'The Guild - Chandigarh' },
+  { id: 'delhi', name: 'The Guild - Delhi NCR' },
+  { id: 'mumbai', name: 'The Guild - Mumbai' },
+];
+
 const ROLE_LABELS: Record<string, string> = {
   applicant: 'Applicant',
   member: 'Member',
@@ -45,6 +53,8 @@ export function MembersPage() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [actionMenuFor, setActionMenuFor] = useState<string | null>(null);
+  const [promoteDialogFor, setPromoteDialogFor] = useState<string | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState('');
   const [actioning, setActioning] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
 
@@ -146,7 +156,7 @@ export function MembersPage() {
 
   const totalMembers = Object.values(counts).reduce((a, b) => a + b, 0);
 
-  async function handleQuickAction(memberId: string, action: string, value: string) {
+  async function handleQuickAction(memberId: string, action: string, value: string, branchId?: string, branchName?: string) {
     if (!profile || actioning) return;
     setActioning(true);
 
@@ -159,6 +169,11 @@ export function MembersPage() {
       } else if (action === 'role') {
         updates.role = value;
         updates.guildRank = ROLE_LABELS[value] || value;
+        // For receptionist, include branch assignment
+        if (value === 'receptionist' && branchId) {
+          updates.branchId = branchId;
+          updates.branchName = branchName;
+        }
       }
 
       await updateDoc(ref, updates);
@@ -168,6 +183,8 @@ export function MembersPage() {
     } finally {
       setActioning(false);
       setActionMenuFor(null);
+      setPromoteDialogFor(null);
+      setSelectedBranch('');
     }
   }
 
@@ -627,6 +644,37 @@ export function MembersPage() {
                               </button>
                             )}
                             <div className="border-t border-[var(--border)]" />
+                            {/* Promote to Receptionist - use existing branch or show dialog */}
+                            {(member.role === 'member' || member.role === 'contributor') && (
+                              member.branchId ? (
+                                <button
+                                  onClick={() => {
+                                    // Use existing branch directly - promote immediately
+                                    const branch = BRANCH_OPTIONS.find(b => b.id === member.branchId);
+                                    handleQuickAction(member.id, 'role', 'receptionist', member.branchId, branch?.name);
+                                    setActionMenuFor(null);
+                                  }}
+                                  disabled={actioning}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--card-subtle)] transition-colors text-purple-600"
+                                >
+                                  <UserPlus className="w-4 h-4" />
+                                  Promote (uses {member.branchName})
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setPromoteDialogFor(member.id);
+                                    setSelectedBranch(BRANCH_OPTIONS[0]?.id || '');
+                                    setActionMenuFor(null);
+                                  }}
+                                  disabled={actioning}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--card-subtle)] transition-colors text-purple-600"
+                                >
+                                  <UserPlus className="w-4 h-4" />
+                                  Promote to Receptionist
+                                </button>
+                              )
+                            )}
                             <button
                               onClick={() => { setActionMenuFor(null); }}
                               className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--card-subtle)] transition-colors"
@@ -649,6 +697,45 @@ export function MembersPage() {
           Showing {filteredMembers.length} of {members.length} members
         </div>
       </div>
+
+      {/* Promote to Receptionist Dialog */}
+      {promoteDialogFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+            <h3 className="text-lg font-bold mb-4">Promote to Receptionist</h3>
+            <p className="text-sm text-[var(--text-muted)] mb-4">
+              Select the branch this receptionist will be assigned to:
+            </p>
+            <select
+              value={selectedBranch}
+              onChange={e => setSelectedBranch(e.target.value)}
+              className="input w-full mb-4"
+            >
+              {BRANCH_OPTIONS.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setPromoteDialogFor(null); setSelectedBranch(''); }}
+                className="secondary flex-1 py-3"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const branch = BRANCH_OPTIONS.find(b => b.id === selectedBranch);
+                  handleQuickAction(promoteDialogFor, 'role', 'receptionist', selectedBranch, branch?.name);
+                }}
+                disabled={actioning || !selectedBranch}
+                className="primary flex-1 py-3"
+              >
+                {actioning ? 'Promoting...' : 'Confirm Promotion'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

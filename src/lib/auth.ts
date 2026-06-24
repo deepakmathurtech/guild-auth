@@ -138,7 +138,9 @@ export async function registerWithEmail(
     availability?: string,
     emergencyContact?: string,
     preferredRole?: string,
-    referralSource?: string
+    referralSource?: string,
+    branchId?: string,
+    branchName?: string
   } = {}
 ) {
   const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -154,11 +156,15 @@ export async function registerWithEmail(
     role: email === 'thecentralguild@gmail.com' ? 'founder' : 'applicant',
     status: 'active',
     jurisdiction,
-    branchId: branch?.id,
-    branchName: branch?.name,
+    branchId: additional.branchId || branch?.id,
+    branchName: additional.branchName || branch?.name,
     skills,
     interests,
-    ...additional,
+    phone: additional.phone,
+    availability: additional.availability,
+    emergencyContact: additional.emergencyContact,
+    preferredRole: additional.preferredRole,
+    referralSource: additional.referralSource,
     verificationStatus: 'pending',
     guildRank: 'Applicant',
     reputationScore: 0,

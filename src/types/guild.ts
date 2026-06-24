@@ -25,10 +25,12 @@ export type VerificationStatus = 'pending' | 'verified' | 'rejected' | 'changes_
 export type ArchiveStatus = 'active' | 'archived';
 export type OrganizationStatus = 'new' | 'contacted' | 'active' | 'partner' | 'inactive';
 export type GuildRank = 'Applicant' | 'F' | 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
-export type NeedStatus = 'open' | 'matching' | 'assigned' | 'inProgress' | 'completed' | 'converted' | 'archived';
+export type NeedStatus = 'submitted' | 'underReview' | 'accepted' | 'convertedToOpportunity' | 'questCreationInProgress' | 'inProgress' | 'completed' | 'closed';
 export type OpportunityStatus = 'draft' | 'open' | 'matching' | 'assigned' | 'inProgress' | 'completed' | 'archived';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'changes_requested';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+export type NeedCategory = 'Technology' | 'Research' | 'Education' | 'Community' | 'Marketing' | 'Design' | 'Operations' | 'Other';
+export type BudgetRange = 'under5k' | '5k-25k' | '25k-100k' | '100k-500k' | '500k-plus' | 'volunteer' | 'toDiscuss';
 
 export interface SuccessionPlan {
   primaryHolderId: string;
@@ -98,6 +100,7 @@ export type LedgerCollection =
   | 'notifications'
   | 'interactions'
   | 'rankReviews'
+  | 'memberQuestRecords'
   | 'guildRegions'
   | 'guildStates'
   | 'guildCities'
@@ -152,6 +155,7 @@ export interface GuildUser extends AuditFields {
   goals?: string[];
   branchId?: string;
   branchName?: string;
+  alternatePhone?: string;
   assignedReceptionistId?: string;
   assignedGuildMasterId?: string;
   assignedGuildMasterName?: string;
@@ -233,6 +237,7 @@ export interface Organization extends AuditFields {
   branchName?: string;
   // Profile expansion
   assignedReceptionistId?: string;
+  assignedReceptionistName?: string;
   assignedGuildMasterId?: string;
   verificationStatus?: VerificationStatus;
   industrySpecialization?: string;
@@ -263,7 +268,11 @@ export interface Need extends AuditFields {
   title: string;
   searchName: string; // Lowercase for duplicate detection
   description: string;
+  desiredOutcome?: string;
+  category: NeedCategory;
   priority: Priority;
+  budgetRange?: BudgetRange;
+  timeline?: string;
   organizationId: string;
   organizationName?: string;
   location?: string;
@@ -271,6 +280,18 @@ export interface Need extends AuditFields {
   deadline?: string;
   estimatedValue: number;
   status: NeedStatus;
+  supportingDocuments?: string[];
+  opportunityId?: string;
+  questId?: string;
+  // Assignment fields
+  assignedReceptionistId?: string;
+  assignedReceptionistName?: string;
+  branchId?: string;
+  branchName?: string;
+  lastUpdatedAt?: string;
+  nextAction?: string;
+  // Review fields
+  reviewNotes?: string;
 }
 
 export interface Opportunity extends AuditFields {
@@ -521,6 +542,48 @@ export interface Quest extends AuditFields {
 }
 
 export type VerificationMethod = 'reportReview' | 'documentUpload' | 'receiptUpload' | 'organizationConfirmation' | 'manualReview';
+
+/**
+ * MemberQuestRecord - Permanent quest history for members
+ * Survives quest closure/archival - member's personal record
+ */
+export interface MemberQuestRecord extends AuditFields {
+  id: string;
+  memberId: string;
+  memberName?: string;
+
+  // Quest Info (snapshot at time of participation)
+  questId: string;
+  questTitle: string;
+  questType?: QuestType;
+  category?: string;
+  organizationId?: string;
+  organizationName?: string;
+
+  // Location
+  branch?: string;
+  city?: string;
+  state?: string;
+
+  // Timeline
+  acceptedDate: string;
+  completedDate?: string;
+  participationStatus: 'applied' | 'accepted' | 'inProgress' | 'submitted' | 'completed' | 'withdrawn' | 'rejected';
+
+  // Financial (for paid quests - member facing only)
+  expectedPayout?: number;
+  actualPayout?: number;
+  paymentStatus?: 'Pending' | 'Approved' | 'Paid' | 'Rejected';
+  paymentDate?: string;
+  paymentReferenceId?: string;
+
+  // Receptionist
+  assignedReceptionistId?: string;
+  assignedReceptionistName?: string;
+
+  // Final Status
+  finalQuestStatus?: QuestStatus; // Status when member left/completed
+}
 
 export interface QuestSubmission extends AuditFields {
   id: string;

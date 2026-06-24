@@ -18,32 +18,80 @@ export function NeedListPage() {
   const [showCreate, setShowCreate] = useState(location.state?.orgId ? true : false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [myNeedsOnly, setMyNeedsOnly] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
-    const base = [where('archiveStatus', '==', 'active')];
-    if (['guildFounder', 'centralGuildMaster', 'founder'].includes(profile.role)) {
-       // National see all
-    } else if (profile.role === 'stateGuildMaster') {
-       base.push(where('jurisdiction.stateId', '==', profile.jurisdiction.stateId));
-    } else {
-       base.push(where('jurisdiction.cityId', '==', profile.jurisdiction.cityId));
-    }
 
+    // Simple query without orderBy to avoid needing composite index
+    // We filter/sort client-side instead
     return subscribeRecords('needs', setNeeds, [
-      ...base,
-      orderBy('updatedAt', 'desc'),
+      where('archiveStatus', '==', 'active'),
       limit(200)
     ]);
   }, [profile]);
 
   const visible = useMemo(() => {
+    if (!profile) return [];
+
+    // Debug logging
+    console.log('[NeedList] Total needs loaded:', needs.length);
+    console.log('[NeedList] Profile uid:', profile.uid);
+    console.log('[NeedList] Profile role:', profile.role);
+    console.log('[NeedList] Profile jurisdiction:', profile.jurisdiction);
+
+    // Role definitions
+    const nationalRoles = ['guildFounder', 'centralGuildMaster', 'founder', 'nationalGuildMaster'];
+    const stateRoles = ['stateGuildMaster'];
+    const cityRoles = ['cityGuildMaster', 'receptionist', 'growthRepresentative'];
+
+    // National roles see ALL needs
+    if (nationalRoles.includes(profile.role)) {
+      console.log('[NeedList] Showing all needs (national role)');
+      return needs;
+    }
+
     return needs.filter(need => {
-      if (statusFilter && need.status !== statusFilter) return false;
-      if (search && !need.title.toLowerCase().includes(search.toLowerCase()) && !need.organizationName?.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
+      const assignedToMe = need.assignedReceptionistId === profile.uid;
+      const createdByMe = need.createdBy === profile.uid;
+      const isUnassigned = !need.assignedReceptionistId;
+
+      // Match by jurisdiction level
+      const inMyState = need.jurisdiction?.stateId === profile.jurisdiction?.stateId;
+      const inMyCity = need.jurisdiction?.cityId === profile.jurisdiction?.cityId;
+
+      console.log('[NeedList] Checking need:', {
+        id: need.id,
+        title: need.title,
+        assignedReceptionistId: need.assignedReceptionistId,
+        createdBy: need.createdBy,
+        needStateId: need.jurisdiction?.stateId,
+        needCityId: need.jurisdiction?.cityId,
+        assignedToMe,
+        createdByMe,
+        isUnassigned,
+        inMyState,
+        inMyCity
+      });
+
+      // State Guild Master: see needs in their state OR assigned/created/unassigned
+      if (stateRoles.includes(profile.role)) {
+        const visible = inMyState || assignedToMe || createdByMe || isUnassigned;
+        console.log('[NeedList] State GM filter:', visible);
+        return visible;
+      }
+
+      // City Guild Master: see needs in their city OR assigned/created/unassigned
+      if (cityRoles.includes(profile.role)) {
+        const visible = inMyCity || assignedToMe || createdByMe || isUnassigned;
+        console.log('[NeedList] City GM/Receptionist filter:', visible);
+        return visible;
+      }
+
+      // Default: show assigned to me OR created by me OR unassigned
+      return assignedToMe || createdByMe || isUnassigned;
     });
-  }, [needs, search, statusFilter]);
+  }, [needs, profile]);
 
   return (
     <div className="space-y-8 pb-20 animate-fade-up">
@@ -84,8 +132,8 @@ export function NeedListPage() {
             />
           </div>
           <div className="flex gap-4">
-            <select 
-              value={statusFilter} 
+            <select
+              value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               className="md:w-48"
             >
@@ -96,6 +144,12 @@ export function NeedListPage() {
               <option>inProgress</option>
               <option>completed</option>
             </select>
+            <button
+              onClick={() => setMyNeedsOnly(!myNeedsOnly)}
+              className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${myNeedsOnly ? 'bg-[var(--primary)] text-black border-[var(--primary)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)]/50'}`}
+            >
+              {myNeedsOnly ? 'My Needs' : 'All Needs'}
+            </button>
           </div>
         </div>
 

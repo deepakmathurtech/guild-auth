@@ -40,7 +40,7 @@ export async function convertNeedToOpportunity(
 
   // Update Need Status
   await updateLedgerRecord('needs', need.id, {
-    status: 'converted'
+    status: 'convertedToOpportunity'
   }, profile, 'Need Converted');
 
   return opp;
@@ -146,7 +146,8 @@ export async function assignMemberToQuest(
   memberId: string,
   profile: GuildUser
 ) {
-  return await runTransaction(db, async (transaction) => {
+  // Run transaction to update quest
+  const result = await runTransaction(db, async (transaction) => {
     const questRef = doc(db, 'quests', questId);
     const snap = await transaction.get(questRef);
     if (!snap.exists()) throw new Error('Quest not found');
@@ -165,7 +166,7 @@ export async function assignMemberToQuest(
     }
 
     const newAssigned = [...assigned, memberId];
-    
+
     // Automatically close recruitment if capacity reached
     const isFull = newAssigned.length >= capacity;
     const newStatus: QuestStatus = isFull ? 'assigned' : 'open';
@@ -176,26 +177,68 @@ export async function assignMemberToQuest(
       updatedAt: new Date().toISOString()
     });
 
-    // Log Activity
-    await logActivity({
-      userId: profile.uid,
-      userName: profile.fullName,
-      action: `Member ${memberId} assigned to quest ${questId}. Status: ${newStatus}`,
-      relatedEntityType: 'quests',
-      relatedEntityId: questId
-    });
-
-    // Notify Member
-    await NotificationService.notify(
-      memberId,
-      'quest_accepted',
-      'Accepted to Quest',
-      `You have been accepted to the quest: ${quest.title}. Status: ${newStatus}`,
-      'medium',
-      profile,
-      { actionUrl: `/quests/${questId}` }
-    );
+    return { quest, newStatus };
   });
+
+  const { quest, newStatus } = result;
+
+  // Log Activity (outside transaction)
+  await logActivity({
+    userId: profile.uid,
+    userName: profile.fullName,
+    action: `Member ${memberId} assigned to quest ${questId}. Status: ${newStatus}`,
+    relatedEntityType: 'quests',
+    relatedEntityId: questId
+  });
+
+  // Get member name from user record
+  let memberName = '';
+  try {
+    const memberDoc = await getDoc(doc(db, 'users', memberId));
+    if (memberDoc.exists()) {
+      const memberData = memberDoc.data();
+      memberName = memberData.fullName || '';
+    }
+  } catch {
+    // ignore - memberName stays empty
+  }
+
+  // Create permanent member quest record (outside transaction)
+  const now = new Date().toISOString();
+
+  await createLedgerRecord('memberQuestRecords', {
+    memberId,
+    memberName,
+    questId: quest.id,
+    questTitle: quest.title,
+    questType: quest.questType,
+    category: quest.category,
+    organizationId: quest.organizationId || '',
+    organizationName: quest.organizationName || '',
+    branch: profile.jurisdiction.cityName || '',
+    city: quest.location?.city || '',
+    state: quest.location?.state || '',
+    acceptedDate: now,
+    participationStatus: 'accepted',
+    expectedPayout: quest.isPaid ? (quest.paymentAmount || 0) : 0,
+    paymentStatus: quest.isPaid ? 'Pending' : undefined,
+    assignedReceptionistId: quest.assignedReceptionistId || '',
+    assignedReceptionistName: quest.assignedReceptionistName || '',
+    finalQuestStatus: newStatus
+  }, profile, 'Member joined quest');
+
+  // Notify Member
+  await NotificationService.notify(
+    memberId,
+    'quest_accepted',
+    'Accepted to Quest',
+    `You have been accepted to the quest: ${quest.title}. Status: ${newStatus}`,
+    'medium',
+    profile,
+    { actionUrl: `/quests/${questId}` }
+  );
+
+  return { quest, newStatus };
 }
 
 export async function removeMemberFromQuest(
@@ -248,8 +291,8 @@ export async function checkOpportunityCompletion(opportunityId: string, profile:
     await createLedgerRecord('outcomes', {
       title: `${opp.title} - Outcome Draft`,
       relatedOpportunityId: opp.id,
-      organizationId: opp.organizationId,
-      organizationName: opp.organizationName,
+      organizationId: opp.organizationId || '',
+      organizationName: opp.organizationName || '',
       participants: [...new Set(quests.flatMap(q => q.assignedMembers || []).filter(Boolean))] as string[],
       evidence: [],
       revenueGenerated: opp.estimatedRevenue || 0,
@@ -330,6 +373,22 @@ export async function approveSubmission(
       console.log(`✓ Awarded ${quest.reputationPoints || 0} XP to member ${submission.memberId} for completing quest ${quest.title}`);
     }
 
+    // Update member quest record to show submission status
+    const { listRecords } = await import('../lib/repository');
+    const memberQuests = await listRecords('memberQuestRecords', [
+      where('questId', '==', submission.questId),
+      where('memberId', '==', submission.memberId),
+      where('archiveStatus', '==', 'active')
+    ]);
+
+    if (memberQuests.length > 0) {
+      const mq = memberQuests[0];
+      await updateLedgerRecord('memberQuestRecords', mq.id, {
+        participationStatus: 'submitted',
+        completedDate: new Date().toISOString()
+      }, profile, 'Member submission approved');
+    }
+
     // Check if all required members have submitted
     if (newAccepted.length >= requiredCount) {
       // Determine next status based on paid/unpaid
@@ -370,10 +429,10 @@ export async function approveSubmission(
         source: `Quest Payment: ${quest.title}`,
         category: 'quest_payout',
         questId: quest.id,
-        opportunityId: quest.opportunityId,
-        organizationId: quest.organizationId,
-        organizationName: quest.organizationName,
-        amount: quest.paymentAmount,
+        opportunityId: quest.opportunityId || '',
+        organizationId: quest.organizationId || '',
+        organizationName: quest.organizationName || '',
+        amount: quest.paymentAmount || 0,
         date: new Date().toISOString(),
         participants: [submission.memberId]
       }, profile, 'Revenue Event Auto-Generated on Approval');
@@ -523,6 +582,27 @@ export async function verifyPayment(
       date: verificationData.paymentDate || new Date().toISOString(),
       participants: quest.assignedMembers || []
     }, profile, 'Guild Revenue from Quest');
+
+    // Update member quest records with payment info
+    if (quest.assignedMembers?.length) {
+      const { listRecords } = await import('../lib/repository');
+      const memberQuests = await listRecords('memberQuestRecords', [
+        where('questId', '==', questId),
+        where('archiveStatus', '==', 'active')
+      ]);
+
+      for (const mq of memberQuests) {
+        const memberId = mq.memberId;
+        const isPaid = quest.assignedMembers.includes(memberId);
+
+        await updateLedgerRecord('memberQuestRecords', mq.id, {
+          actualPayout: isPaid ? payout.memberRevenue : undefined,
+          paymentStatus: isPaid ? 'Paid' : undefined,
+          paymentDate: isPaid ? (verificationData.paymentDate || new Date().toISOString()) : undefined,
+          paymentReferenceId: isPaid ? verificationData.paymentReferenceId : undefined
+        }, profile, 'Payment linked to member quest record');
+      }
+    }
   }
 
   return paymentVerification;

@@ -23,6 +23,7 @@ import type {
   GuildUser,
   KnowledgeRecord,
   LedgerCollection,
+  MemberQuestRecord,
   Need,
   NotificationRecord,
   Opportunity,
@@ -57,6 +58,7 @@ export type EntityMap = {
   notifications: NotificationRecord;
   interactions: InteractionRecord;
   rankReviews: RankReviewTicket;
+  memberQuestRecords: MemberQuestRecord;
   successionPlans: SuccessionPlan & { userId: string; id: string }; // Extended for repository use
   transferRecords: TransferRecord;
   leaveRecords: LeaveRecord;
@@ -79,6 +81,7 @@ export const ledgerCollections: LedgerCollection[] = [
   'notifications',
   'interactions',
   'rankReviews',
+  'memberQuestRecords',
   'guildRegions',
   'guildStates',
   'guildCities',

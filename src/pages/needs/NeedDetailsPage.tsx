@@ -5,10 +5,10 @@ import { getRecord, updateLedgerRecord, subscribeRecords } from '../../lib/repos
 import { useAuth } from '../../context/AuthContext';
 import type { Need, Opportunity, Quest } from '../../types/guild';
 import { where } from 'firebase/firestore';
-import { 
-  ChevronLeft, Flag, Building2, MapPin, 
+import {
+  ChevronLeft, Flag, Building2, MapPin,
   IndianRupee, Edit3, Sparkles, ClipboardCheck,
-  ArrowRight, Info, Target, History
+  ArrowRight, Info, Target, History, Sword
 } from 'lucide-react';
 
 export function NeedDetailsPage() {
@@ -45,16 +45,33 @@ export function NeedDetailsPage() {
   }
 
   function handleConvert() {
-    navigate('/opportunities', { 
-      state: { 
-        needId: need?.id, 
-        title: need?.title, 
+    navigate('/opportunities', {
+      state: {
+        needId: need?.id,
+        title: need?.title,
         description: need?.description,
         orgId: need?.organizationId,
         orgName: need?.organizationName,
         revenue: need?.estimatedValue,
         showCreate: true
-      } 
+      }
+    });
+  }
+
+  function handleCreateQuest() {
+    navigate('/quests/register', {
+      state: {
+        needId: need?.id,
+        title: need?.title,
+        description: need?.description,
+        orgId: need?.organizationId,
+        orgName: need?.organizationName,
+        priority: need?.priority,
+        location: need?.location,
+        city: need?.city,
+        revenue: need?.estimatedValue,
+        showCreate: true
+      }
     });
   }
 
@@ -96,8 +113,11 @@ export function NeedDetailsPage() {
           <button className="secondary flex-1 md:flex-none" onClick={() => setEditMode(!editMode)}>
             <Edit3 className="w-4 h-4" /> {editMode ? 'Cancel' : 'Edit Need'}
           </button>
-          <button className="primary flex-1 md:flex-none" onClick={handleConvert}>
+          <button className="secondary flex-1 md:flex-none" onClick={handleConvert}>
             <Sparkles className="w-4 h-4" /> Convert to Opportunity
+          </button>
+          <button className="primary flex-1 md:flex-none" onClick={handleCreateQuest}>
+            <Sword className="w-4 h-4" /> Create Quest
           </button>
         </div>
       </div>
@@ -127,7 +147,14 @@ export function NeedDetailsPage() {
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Status</label>
                     <select value={form.status} onChange={e => setForm({...form, status: e.target.value as any})}>
-                      <option>open</option><option>matching</option><option>assigned</option><option>inProgress</option><option>completed</option>
+                      <option value="submitted">Submitted</option>
+                      <option value="underReview">Under Review</option>
+                      <option value="accepted">Accepted</option>
+                      <option value="convertedToOpportunity">Converted to Opportunity</option>
+                      <option value="questCreationInProgress">Quest In Progress</option>
+                      <option value="inProgress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="closed">Closed</option>
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -160,8 +187,8 @@ export function NeedDetailsPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)] mb-2">Operator</p>
-                    <p className="text-sm font-semibold">{need.createdBy || 'System'}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-muted)] mb-2">Organization</p>
+                    <p className="text-sm font-semibold">{need.organizationName || 'Unknown'}</p>
                   </div>
                 </div>
                 
@@ -265,11 +292,11 @@ export function NeedDetailsPage() {
              <div className="space-y-4">
                <div>
                  <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1">Created At</p>
-                 <p className="text-xs font-medium">{new Date(need.createdAt).toLocaleString()}</p>
+                 <p className="text-xs font-medium">{need.createdAt ? new Date(need.createdAt).toLocaleString() : 'N/A'}</p>
                </div>
                <div>
                  <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase mb-1">Last Updated</p>
-                 <p className="text-xs font-medium">{new Date(need.updatedAt).toLocaleString()}</p>
+                 <p className="text-xs font-medium">{need.updatedAt ? new Date(need.updatedAt).toLocaleString() : 'N/A'}</p>
                </div>
              </div>
           </div>

@@ -3,10 +3,59 @@ import { Navigate } from 'react-router-dom';
 import { loginWithEmail, loginWithGoogle, registerWithEmail } from '../lib/auth';
 import type { Jurisdiction } from '../types/guild';
 import { useAuth } from '../context/AuthContext';
-import { INDIAN_STATES } from '../lib/jurisdiction';
 import { isUserActive } from '../lib/rbac';
-import { ChevronRight, ArrowLeft, ShieldCheck, MapPin, Sparkles, User, Mail, Lock, Phone, Star } from 'lucide-react';
+import { ChevronRight, ArrowLeft, ShieldCheck, MapPin, User, Mail, Lock, Phone, Building, Sparkles } from 'lucide-react';
 import Particles from '../components/Particles';
+
+// City-to-branch/receptionist mapping
+const CITY_BRANCH_MAP: Record<string, { stateKey: string; stateName: string; cityKey: string; cityName: string; branchId: string; branchName: string; receptionistId: string; receptionistName: string }> = {
+  // Punjab
+  'ludhiana': { stateKey: 'punjab', stateName: 'Punjab', cityKey: 'ludhiana', cityName: 'Ludhiana', branchId: 'ludhiana', branchName: 'The Guild - Ludhiana', receptionistId: 'rec_amit', receptionistName: 'Amit Sharma' },
+  'chandigarh': { stateKey: 'punjab', stateName: 'Punjab', cityKey: 'chandigarh', cityName: 'Chandigarh', branchId: 'chandigarh', branchName: 'The Guild - Chandigarh', receptionistId: 'rec_priya', receptionistName: 'Priya Kaur' },
+  'jalandhar': { stateKey: 'punjab', stateName: 'Punjab', cityKey: 'jalandhar', cityName: 'Jalandhar', branchId: 'chandigarh', branchName: 'The Guild - Chandigarh', receptionistId: 'rec_priya', receptionistName: 'Priya Kaur' },
+  'patiala': { stateKey: 'punjab', stateName: 'Punjab', cityKey: 'patiala', cityName: 'Patiala', branchId: 'chandigarh', branchName: 'The Guild - Chandigarh', receptionistId: 'rec_priya', receptionistName: 'Priya Kaur' },
+  // Delhi NCR
+  'delhi': { stateKey: 'delhi', stateName: 'Delhi', cityKey: 'delhi', cityName: 'Delhi NCR', branchId: 'delhi', branchName: 'The Guild - Delhi NCR', receptionistId: 'rec_rahul', receptionistName: 'Rahul Verma' },
+  'gurgaon': { stateKey: 'delhi', stateName: 'Delhi', cityKey: 'gurgaon', cityName: 'Gurgaon', branchId: 'delhi', branchName: 'The Guild - Delhi NCR', receptionistId: 'rec_rahul', receptionistName: 'Rahul Verma' },
+  'noida': { stateKey: 'delhi', stateName: 'Delhi', cityKey: 'noida', cityName: 'Noida', branchId: 'delhi', branchName: 'The Guild - Delhi NCR', receptionistId: 'rec_rahul', receptionistName: 'Rahul Verma' },
+  // Haryana
+  'faridabad': { stateKey: 'haryana', stateName: 'Haryana', cityKey: 'faridabad', cityName: 'Faridabad', branchId: 'delhi', branchName: 'The Guild - Delhi NCR', receptionistId: 'rec_rahul', receptionistName: 'Rahul Verma' },
+  'panipat': { stateKey: 'haryana', stateName: 'Haryana', cityKey: 'panipat', cityName: 'Panipat', branchId: 'ludhiana', branchName: 'The Guild - Ludhiana', receptionistId: 'rec_amit', receptionistName: 'Amit Sharma' },
+  // Maharashtra
+  'mumbai': { stateKey: 'maharashtra', stateName: 'Maharashtra', cityKey: 'mumbai', cityName: 'Mumbai', branchId: 'mumbai', branchName: 'The Guild - Mumbai', receptionistId: 'rec_anita', receptionistName: 'Anita Verma' },
+  'pune': { stateKey: 'maharashtra', stateName: 'Maharashtra', cityKey: 'pune', cityName: 'Pune', branchId: 'mumbai', branchName: 'The Guild - Mumbai', receptionistId: 'rec_anita', receptionistName: 'Anita Verma' },
+};
+
+// State list (derived from mapping keys)
+const STATE_OPTIONS = [
+  { key: 'punjab', name: 'Punjab' },
+  { key: 'delhi', name: 'Delhi' },
+  { key: 'haryana', name: 'Haryana' },
+  { key: 'maharashtra', name: 'Maharashtra' },
+];
+
+// City options grouped by state
+const CITIES_BY_STATE: Record<string, { key: string; name: string }[]> = {
+  'punjab': [
+    { key: 'ludhiana', name: 'Ludhiana' },
+    { key: 'chandigarh', name: 'Chandigarh' },
+    { key: 'jalandhar', name: 'Jalandhar' },
+    { key: 'patiala', name: 'Patiala' },
+  ],
+  'delhi': [
+    { key: 'delhi', name: 'Delhi NCR' },
+    { key: 'gurgaon', name: 'Gurgaon' },
+    { key: 'noida', name: 'Noida' },
+  ],
+  'haryana': [
+    { key: 'faridabad', name: 'Faridabad' },
+    { key: 'panipat', name: 'Panipat' },
+  ],
+  'maharashtra': [
+    { key: 'mumbai', name: 'Mumbai' },
+    { key: 'pune', name: 'Pune' },
+  ],
+};
 
 export function LoginPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -15,19 +64,13 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Form State
+  // Form State - minimal for registration
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [stateName, setStateName] = useState('Punjab');
-  const [cityName, setCityName] = useState('');
-  const [skills, setSkills] = useState('');
-  const [interests, setInteractions] = useState('');
   const [phone, setPhone] = useState('');
-  const [availability, setAvailability] = useState('');
-  const [emergencyContact, setEmergencyContact] = useState('');
-  const [preferredRole, setPreferredRole] = useState('');
-  const [referralSource, setReferralSource] = useState('');
+  const [stateKey, setStateKey] = useState('punjab');
+  const [cityKey, setCityKey] = useState('ludhiana');
 
   const [indicator, setIndicator] = useState({ width: 0, left: 0 });
   const loginRef = useRef<HTMLButtonElement>(null);
@@ -64,9 +107,9 @@ export function LoginPage() {
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
     setError('');
-    
-    // Validation
-    if (!fullName || !email || !password || !cityName) {
+
+    // Validation - minimal required fields
+    if (!fullName || !email || !password || !cityKey) {
       setError('Required: Name, Email, Password, and City.');
       return;
     }
@@ -75,31 +118,40 @@ export function LoginPage() {
       return;
     }
 
+    // Get branch/receptionist from city mapping
+    const cityData = CITY_BRANCH_MAP[cityKey];
+    if (!cityData) {
+      setError('Please select a valid city.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const stateObj = INDIAN_STATES.find(s => s.name === stateName)!;
       const jurisdiction: Jurisdiction = {
         countryId: 'india',
         countryName: 'India',
-        stateId: stateObj.id,
-        stateName: stateObj.name,
-        cityId: cityName.toLowerCase().trim().substring(0, 3),
-        cityName: cityName.trim()
+        stateId: cityData.stateKey,
+        stateName: cityData.stateName,
+        cityId: cityData.cityKey,
+        cityName: cityData.cityName
       };
-      
+
+      // Register with minimal data - admin can promote later
       await registerWithEmail(
-        email.trim(), 
-        password, 
-        fullName.trim(), 
-        jurisdiction, 
-        skills.split(',').map(s => s.trim()).filter(Boolean), 
-        interests.split(',').map(i => i.trim()).filter(Boolean),
+        email.trim(),
+        password,
+        fullName.trim(),
+        jurisdiction,
+        [], // skills - optional
+        [], // interests - optional
         {
           phone: phone.trim(),
-          availability: availability.trim(),
-          emergencyContact: emergencyContact.trim(),
-          preferredRole: preferredRole.trim(),
-          referralSource: referralSource.trim()
+          // Store location-based fields for admin reference
+          preferredRole: 'member', // default role - admin can promote
+          referralSource: cityData.branchId,
+          // Branch and receptionist - explicitly saved for admin visibility
+          branchId: cityData.branchId,
+          branchName: cityData.branchName,
         }
       );
     } catch (err: any) {
@@ -284,75 +336,64 @@ export function LoginPage() {
                       <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 6 chars" />
                     </div>
                   </div>
-                  <button className="primary w-full py-3.5 mt-4" onClick={() => setStep(2)}>
+                  <button className="primary w-full py-3.5 mt-4" onClick={() => {
+                // Validate step 1
+                if (!fullName.trim() || !email.trim() || !password || !phone.trim()) {
+                  setError('Required: Name, Email, Phone, and Password.');
+                  return;
+                }
+                if (password.length < 6) {
+                  setError('Password must be at least 6 characters.');
+                  return;
+                }
+                setStep(2);
+              }}>
                     Next Step <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               )}
 
               {step === 2 && (
-                <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                <form onSubmit={handleRegister} className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                  {/* State dropdown */}
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-                      <MapPin className="w-3 h-3" /> Jurisdiction: State
+                      <MapPin className="w-3 h-3" /> State
                     </label>
-                    <select value={stateName} onChange={e => setStateName(e.target.value)}>
-                      {INDIAN_STATES.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                    <select
+                      value={stateKey}
+                      onChange={e => {
+                        setStateKey(e.target.value);
+                        // Reset city when state changes - pick first available city
+                        const cities = CITIES_BY_STATE[e.target.value];
+                        if (cities && cities.length > 0) {
+                          setCityKey(cities[0].key);
+                        }
+                      }}
+                    >
+                      {STATE_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
                     </select>
                   </div>
+
+                  {/* City dropdown - filtered by state */}
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-                      <MapPin className="w-3 h-3" /> Jurisdiction: City
+                      <MapPin className="w-3 h-3" /> City (selects your Branch & Receptionist)
                     </label>
-                    <input value={cityName} onChange={e => setCityName(e.target.value)} placeholder="e.g. Ludhiana, Mumbai, Chennai" />
-                  </div>
-                  <div className="flex gap-3 pt-4">
-                    <button className="secondary flex-1 py-3.5" onClick={() => setStep(1)}>
-                      <ArrowLeft className="w-4 h-4" /> Back
-                    </button>
-                    <button className="primary flex-[2] py-3.5" onClick={() => setStep(3)}>
-                      Final Details <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                <form onSubmit={handleRegister} className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-                        <Sparkles className="w-3 h-3" /> Skills
-                      </label>
-                      <input value={skills} onChange={e => setSkills(e.target.value)} placeholder="React, Sales" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-2">
-                        <Star className="w-3 h-3" /> Interests
-                      </label>
-                      <input value={interests} onChange={e => setInteractions(e.target.value)} placeholder="Tech, Art" />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Availability</label>
-                    <input value={availability} onChange={e => setAvailability(e.target.value)} placeholder="e.g. 20 hours/week" />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Preferred Role</label>
-                      <input value={preferredRole} onChange={e => setPreferredRole(e.target.value)} placeholder="e.g. Developer" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Emergency</label>
-                      <input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} placeholder="Name & Phone" />
-                    </div>
+                    <select
+                      value={cityKey}
+                      onChange={e => setCityKey(e.target.value)}
+                    >
+                      {CITIES_BY_STATE[stateKey]?.map(c => (
+                        <option key={c.key} value={c.key}>{c.name}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {error && <p className="text-[var(--error)] text-xs font-medium bg-[var(--error)]/10 p-3 rounded-lg border border-[var(--error)]/20">{error}</p>}
-                  
-                  <div className="flex gap-3 pt-4">
-                    <button className="secondary flex-1 py-3.5" type="button" onClick={() => setStep(2)}>
+
+                  <div className="flex gap-3 pt-2">
+                    <button className="secondary flex-1 py-3.5" type="button" onClick={() => setStep(1)}>
                       <ArrowLeft className="w-4 h-4" /> Back
                     </button>
                     <button className="primary flex-[2] py-3.5" type="submit" disabled={loading}>

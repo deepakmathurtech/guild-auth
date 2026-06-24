@@ -126,7 +126,7 @@ export function FounderDashboard() {
     // New pending items
     const pendingApplicants = data.users.filter(u => u.role === 'applicant').length;
     const pendingVerifications = data.users.filter(u => u.verificationStatus === 'pending').length;
-    const pendingNeeds = data.needs.filter(n => n.status === 'open').length;
+    const pendingNeeds = data.needs.filter(n => n.status === 'submitted').length;
     const pendingSubmissions = data.quests.filter(q => q.status === 'underReview').length;
 
     return {
@@ -203,8 +203,8 @@ export function FounderDashboard() {
       });
     });
 
-    // Open needs
-    data.needs.filter(n => n.status === 'open').slice(0, 5).forEach(n => {
+    // Pending needs
+    data.needs.filter(n => n.status === 'submitted').slice(0, 5).forEach(n => {
       items.push({
         id: `need-${n.id}`,
         type: 'need',

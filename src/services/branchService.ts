@@ -309,6 +309,27 @@ export async function findStaffWithoutBranch(): Promise<GuildUser[]> {
     .filter(u => !u.branchId);
 }
 
+// PHASE 11: Find least-loaded receptionist for load balancing
+export async function findLeastLoadedReceptionist(cityId?: string, stateId?: string): Promise<GuildUser | null> {
+  // Fetch potential receptionists
+  const conditions = [
+    where('archiveStatus', '==', 'active'),
+    where('role', '==', 'receptionist')
+  ];
+  if (cityId) conditions.push(where('jurisdiction.cityId', '==', cityId));
+  if (stateId && !cityId) conditions.push(where('jurisdiction.stateId', '==', stateId));
+
+  const q = query(collection(db, 'users'), ...conditions);
+  const snap = await getDocs(q);
+  const receptionists = snap.docs.map(d => ({ uid: d.id, ...d.data() } as GuildUser));
+
+  if (receptionists.length === 0) return null;
+
+  // Simple load balancing: return first available
+  // Future: query quest counts and sort by least loaded
+  return receptionists[0];
+}
+
 // PHASE 10: Update branch member counts
 export async function updateBranchMemberCounts(): Promise<void> {
   const branches = await getAllBranches();

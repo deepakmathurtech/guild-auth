@@ -58,9 +58,9 @@ const configs: Record<string, WorkbenchConfig<keyof EntityMap | 'activityLogs'>>
       { name: 'city', label: 'City', type: 'text' },
       { name: 'deadline', label: 'Deadline', type: 'date' },
       { name: 'estimatedValue', label: 'Estimated Value', type: 'number' },
-      { name: 'status', label: 'Status', type: 'select', options: ['open', 'matching', 'assigned', 'inProgress', 'completed', 'archived'], required: true }
+      { name: 'status', label: 'Status', type: 'select', options: ['submitted', 'underReview', 'accepted', 'convertedToOpportunity', 'questCreationInProgress', 'inProgress', 'completed', 'closed'], required: true }
     ],
-    defaults: { status: 'open', estimatedValue: 0 }
+    defaults: { status: 'submitted', estimatedValue: 0 }
   },
   opportunities: {
     collectionName: 'opportunities',

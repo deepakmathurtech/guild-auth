@@ -244,10 +244,13 @@ export function QuestDetailsPage() {
                     >
                       <option value="draft">Draft</option>
                       <option value="open">Open</option>
+                      <option value="assigned">Assigned</option>
                       <option value="inProgress">In Progress</option>
                       <option value="underReview">Under Review</option>
+                      <option value="paymentPending">Payment Pending</option>
                       <option value="completed">Completed</option>
                       <option value="closed">Closed</option>
+                      <option value="cancelled">Cancelled</option>
                       <option value="archived">Archived</option>
                     </select>
                     <button onClick={() => handleUpdateField('status', newStatus)} className="text-sm px-3 py-1.5 rounded-lg bg-emerald-500 text-white">Save</button>
