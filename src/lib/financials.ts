@@ -52,6 +52,7 @@ export interface GuildShareResult {
 
 /**
  * Calculate how revenue should be split between guild and member
+ * Guarante Minimum 5% guild share
  */
 export function calculateGuildShare(
   grossAmount: number,
@@ -59,28 +60,61 @@ export function calculateGuildShare(
 ): GuildShareResult {
   // Ensure minimum 5% guild share
   const safePercentage = Math.max(guildPercentage, 5);
-  const baseGuildAmount = Math.round(grossAmount * (safePercentage / 100));
-  const baseMemberAmount = grossAmount - baseGuildAmount;
+  const minGuildAmount = Math.ceil(grossAmount * (safePercentage / 100)); // ceil to ensure minimum 5%
+  const memberBeforeRounding = grossAmount - minGuildAmount;
 
-  // Round member payout down to psychological price
-  const roundedMemberRevenue = roundToPreferredEnding(baseMemberAmount);
+  // Round member payout DOWN to preferred ending (floor)
+  const roundedMemberRevenue = roundToPreferredEndingFloor(memberBeforeRounding);
 
-  // Rounding adjustment goes to guild
-  const roundingAdjustment = baseMemberAmount - roundedMemberRevenue;
-  const finalGuildRevenue = baseGuildAmount + roundingAdjustment;
+  // Rounding goes to guild
+  const roundingDrop = memberBeforeRounding - roundedMemberRevenue;
+  let finalGuildRevenue = minGuildAmount + roundingDrop;
+  let finalMemberRevenue = roundedMemberRevenue;
+
+  // Safety: ensure guild >= 5% (this handles edge cases with small amounts)
+  const minRequired = Math.ceil(grossAmount * 0.05);
+  if (finalGuildRevenue < minRequired) {
+    finalGuildRevenue = minRequired;
+    finalMemberRevenue = grossAmount - finalGuildRevenue;
+  }
 
   return {
     grossAmount,
     guildRevenue: finalGuildRevenue,
-    memberRevenue: roundedMemberRevenue,
+    memberRevenue: finalMemberRevenue,
     baseGuildPercentage: safePercentage,
-    baseGuildAmount,
-    roundingAdjustment,
+    baseGuildAmount: minGuildAmount,
+    roundingAdjustment: roundingDrop,
     finalDistribution: {
       guild: finalGuildRevenue,
-      member: roundedMemberRevenue
+      member: finalMemberRevenue
     }
   };
+}
+
+/**
+ * Round DOWN to preferred ending (floor, not nearest)
+ * Finds the highest ending <= lastTwoDigits from descending PREFERRED_ENDINGS list
+ */
+function roundToPreferredEndingFloor(amount: number): number {
+  const lastTwoDigits = amount % 100;
+
+  // PREFERRED_ENDINGS is descending: [99, 49, 39, 29, 19]
+  // Round DOWN: find the highest ending <= lastTwoDigits
+  let selected = 0;
+  for (const ending of PREFERRED_ENDINGS) {
+    if (ending <= lastTwoDigits) {
+      selected = ending;
+      break; // First match is highest since list is descending
+    }
+  }
+
+  // If no ending found (lastTwoDigits < 19), round down to nearest 100
+  if (selected === 0) {
+    return Math.floor(amount / 100) * 100;
+  }
+
+  return Math.floor(amount / 100) * 100 + selected;
 }
 
 /**
