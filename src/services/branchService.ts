@@ -1,8 +1,10 @@
 import { db } from '../lib/firebase';
 import {
-  collection, query, where, getDocs, doc, updateDoc,
+  collection, query, where, getDocs, getDoc, doc, updateDoc,
   addDoc, serverTimestamp, orderBy, limit
 } from 'firebase/firestore';
+
+
 import type { Branch, BranchRequest, Jurisdiction, Organization, GuildUser } from '../types/guild';
 
 // PHASE 1: Branch lookup - find existing branch by jurisdiction
@@ -123,6 +125,7 @@ export async function getPendingBranchRequests(): Promise<BranchRequest[]> {
 // PHASE 4: Approve branch request and create branch
 // PHASE 5: Auto-assign pending users/organizations after branch creation
 export async function approveBranchRequest(
+
   requestId: string,
   branchName: string,
   branchCode: string,
@@ -256,19 +259,99 @@ export async function createBranch(
   return ref.id;
 }
 
-// PHASE 5: Assign users to a newly created branch
-export async function assignUsersToBranch(branchId: string, userIds: string[]): Promise<void> {
-  for (const userId of userIds) {
-    const userRef = doc(db, 'users', userId);
+// PHASE 5: Staff role synchronization
+
+const STAFF_ROLES_BRANCH_BASED = ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster'] as const;
+
+type StaffRoleBranchBased = (typeof STAFF_ROLES_BRANCH_BASED)[number];
+
+function isUnknownLocationField(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  if (typeof value !== 'string') return false;
+  const v = value.trim();
+  return v === '' || v.toLowerCase() === 'unknown' || v.toLowerCase() === 'n/a';
+}
+
+export async function syncUserLocationFromBranch(params: { userId: string; branchId: string }): Promise<void> {
+  const { userId, branchId } = params;
+
+  // Fetch user (to avoid overwriting valid data)
+  const userRef = doc(db, 'users', userId);
+  const userSnap = await getDoc(userRef);
+  if (!userSnap.exists()) return;
+  const userData = userSnap.data() as GuildUser;
+
+  // Only synchronize for branch-based staff roles
+  if (!userData.role || !(STAFF_ROLES_BRANCH_BASED as readonly string[]).includes(userData.role)) {
+    // still ensure branchId is consistent if it was just assigned
     await updateDoc(userRef, {
       branchId,
       updatedAt: new Date().toISOString()
     });
+    return;
+  }
+
+  // Fetch branch
+  const branchRef = doc(db, 'guildBranches', branchId);
+  const branchSnap = await getDoc(branchRef);
+  if (!branchSnap.exists()) return;
+  const branchData = branchSnap.data() as Branch;
+
+
+  const nextJurisdiction = {
+    cityId: branchData.cityId,
+    cityName: branchData.cityName,
+    stateId: branchData.stateId,
+    stateName: branchData.stateName,
+    countryId: branchData.countryId,
+    countryName: branchData.countryName
+  };
+
+  const currentJurisdiction = userData.jurisdiction;
+  const shouldRepairCity = isUnknownLocationField(currentJurisdiction?.cityName) || isUnknownLocationField(currentJurisdiction?.cityId);
+  const shouldRepairState = isUnknownLocationField(currentJurisdiction?.stateName) || isUnknownLocationField(currentJurisdiction?.stateId);
+  const shouldRepairCountry = isUnknownLocationField(currentJurisdiction?.countryName) || isUnknownLocationField(currentJurisdiction?.countryId);
+
+  const safeCurrent = (currentJurisdiction || {}) as Partial<Jurisdiction>;
+
+  // Update branch fields + repair only missing/Unknown jurisdiction fields
+  await updateDoc(userRef, {
+    branchId,
+    branchName: branchData.name,
+    jurisdiction: {
+      cityId: shouldRepairCity ? nextJurisdiction.cityId : (safeCurrent.cityId ?? nextJurisdiction.cityId),
+      cityName: shouldRepairCity ? nextJurisdiction.cityName : (safeCurrent.cityName ?? nextJurisdiction.cityName),
+      stateId: shouldRepairState ? nextJurisdiction.stateId : (safeCurrent.stateId ?? nextJurisdiction.stateId),
+      stateName: shouldRepairState ? nextJurisdiction.stateName : (safeCurrent.stateName ?? nextJurisdiction.stateName),
+      countryId: shouldRepairCountry ? nextJurisdiction.countryId : (safeCurrent.countryId ?? nextJurisdiction.countryId),
+      countryName: shouldRepairCountry ? nextJurisdiction.countryName : (safeCurrent.countryName ?? nextJurisdiction.countryName)
+    },
+    updatedAt: new Date().toISOString()
+  });
+}
+
+
+
+
+// PHASE 5: Assign users to a newly created branch
+export async function assignUsersToBranch(branchId: string, userIds: string[]): Promise<void> {
+  for (const userId of userIds) {
+    const userRef = doc(db, 'users', userId);
+
+    // Assign branchId first
+    await updateDoc(userRef, {
+      branchId,
+      updatedAt: new Date().toISOString()
+    });
+
+    // Synchronize jurisdiction/display fields for branch-based staff roles
+    await syncUserLocationFromBranch({ userId, branchId });
   }
 }
 
 // PHASE 5: Assign organizations to a newly created branch
 export async function assignOrganizationsToBranch(branchId: string, orgIds: string[]): Promise<void> {
+
   for (const orgId of orgIds) {
     const orgRef = doc(db, 'organizations', orgId);
     await updateDoc(orgRef, {
@@ -340,6 +423,51 @@ export async function updateBranchMemberCounts(): Promise<void> {
       organizationCount: branch.organizationCount || 0,
       updatedAt: new Date().toISOString()
     });
+  }
+}
+
+// ========== BRANCH LOCATION HELPER ==========
+
+export interface BranchLocation {
+  cityId: string;
+  cityName: string;
+  stateId: string;
+  stateName: string;
+  countryId: string;
+  countryName: string;
+  name: string;
+}
+
+// Get branch location details from branch document
+export async function getBranchLocation(branchId: string | undefined): Promise<BranchLocation | null> {
+  if (!branchId) return null;
+
+  try {
+    const branchRef = doc(db, 'guildBranches', branchId);
+    const branchSnap = await getDoc(branchRef);
+    if (!branchSnap.exists()) return null;
+
+    const branchData = branchSnap.data() as any;
+    // Handle both naming conventions: cityName/cityName or city/state
+    const cityId = branchData.cityId || branchData.city?.toLowerCase().replace(/\s+/g, '-') || '';
+    const cityName = branchData.cityName || branchData.city || '';
+    const stateId = branchData.stateId || branchData.state?.toLowerCase().replace(/\s+/g, '-') || '';
+    const stateName = branchData.stateName || branchData.state || '';
+    const countryId = branchData.countryId || branchData.country?.toLowerCase().replace(/\s+/g, '-') || 'india';
+    const countryName = branchData.countryName || branchData.country || 'India';
+
+    return {
+      cityId,
+      cityName,
+      stateId,
+      stateName,
+      countryId,
+      countryName,
+      name: branchData.name || ''
+    };
+  } catch (err) {
+    console.error('Failed to get branch location:', err);
+    return null;
   }
 }
 

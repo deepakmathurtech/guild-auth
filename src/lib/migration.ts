@@ -1,15 +1,16 @@
 import { collection, getDocs, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { INDIAN_STATES } from './jurisdiction';
+import { repairStaffJurisdictionsFromBranch } from './repairJurisdictionsFromBranch';
 
 /**
  * migrateToFederationV3
- * 
+ *
  * One-time migration to backfill jurisdiction data for existing records.
  */
 export async function migrateToFederationV3() {
   const collections = ['users', 'organizations', 'needs', 'opportunities', 'quests', 'outcomes', 'verifications', 'revenueEvents', 'knowledgeBase'];
-  
+
   // 1. Seed States
   const stateBatch = writeBatch(db);
   INDIAN_STATES.forEach(state => {
@@ -53,3 +54,18 @@ export async function migrateToFederationV3() {
     }
   }
 }
+
+/**
+ * repairJurisdictionsFromBranch
+ *
+ * Safe idempotent repair routine:
+ * - for active staff users with branchId
+ * - if jurisdiction fields are missing/Unknown
+ * - backfill jurisdiction and branchName from guildBranches
+ */
+export async function repairJurisdictionsFromBranch() {
+  const result = await repairStaffJurisdictionsFromBranch();
+  console.log('repairJurisdictionsFromBranch result:', result);
+  return result;
+}
+

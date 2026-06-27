@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, updateDoc, getDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { syncUserLocationFromBranch, getBranchLocation } from '../services/branchService';
+
 import { useAuth } from '../context/AuthContext';
 import type { User, GuildUser } from '../types/guild';
 import {
   User as UserIcon, Building, ChevronLeft, Phone, Mail,
-  Save, X
+  Save, X, MapPin, Globe, Sparkles
 } from 'lucide-react';
 
 const STATE_OPTIONS = [
@@ -91,6 +93,7 @@ export function EditMemberProfilePage() {
   const [alternatePhone, setAlternatePhone] = useState('');
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
   const [branchId, setBranchId] = useState('');
   const [branchName, setBranchName] = useState('');
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
@@ -118,10 +121,28 @@ export function EditMemberProfilePage() {
         setFullName(userData.fullName || '');
         setPhone(userData.phone || '');
         setAlternatePhone(userData.alternatePhone || '');
-        setState(userData.jurisdiction?.stateId || '');
-        setCity(userData.jurisdiction?.cityId || '');
         setBranchId(userData.branchId || '');
         setBranchName(userData.branchName || '');
+
+        // Load location from branch (source of truth)
+        if (userData.branchId) {
+          const branchLocation = await getBranchLocation(userData.branchId);
+          if (branchLocation) {
+            setState(branchLocation.stateName || '');
+            setCity(branchLocation.cityName || '');
+            setCountry(branchLocation.countryName || '');
+          } else {
+            // Fallback to jurisdiction fields
+            setState(userData.jurisdiction?.stateName || userData.jurisdiction?.stateId || '');
+            setCity(userData.jurisdiction?.cityName || userData.jurisdiction?.cityId || '');
+            setCountry(userData.jurisdiction?.countryName || '');
+          }
+        } else {
+          // No branch - use jurisdiction fields directly
+          setState(userData.jurisdiction?.stateName || userData.jurisdiction?.stateId || '');
+          setCity(userData.jurisdiction?.cityName || userData.jurisdiction?.cityId || '');
+          setCountry(userData.jurisdiction?.countryName || '');
+        }
       } catch (err) {
         console.error('Failed to load member data:', err);
       } finally {
@@ -151,6 +172,30 @@ export function EditMemberProfilePage() {
     loadBranches();
   }, [canEditBranch]);
 
+  // Fetch location from selected branch (source of truth)
+  useEffect(() => {
+    async function fetchBranchLocation() {
+      if (!branchId) {
+        setState('');
+        setCity('');
+        setCountry('');
+        return;
+      }
+
+      try {
+        const branchLocation = await getBranchLocation(branchId);
+        if (branchLocation) {
+          setState(branchLocation.stateName || '');
+          setCity(branchLocation.cityName || '');
+          setCountry(branchLocation.countryName || '');
+        }
+      } catch (err) {
+        console.error('Failed to fetch branch location:', err);
+      }
+    }
+    fetchBranchLocation();
+  }, [branchId]);
+
   const handleSave = async () => {
     if (!member?.id) return;
 
@@ -160,12 +205,6 @@ export function EditMemberProfilePage() {
         fullName,
         phone,
         alternatePhone,
-        jurisdiction: {
-          stateId: state,
-          stateName: STATE_OPTIONS.find(s => s.id === state)?.name || state,
-          cityId: city,
-          cityName: CITIES_BY_STATE[state]?.find(c => c.id === city)?.name || city,
-        },
         updatedAt: new Date().toISOString(),
       };
 
@@ -176,6 +215,12 @@ export function EditMemberProfilePage() {
       }
 
       await updateDoc(doc(db, 'users', member.id), updateData);
+
+      // If branch changed for staff, force jurisdiction sync from branch
+      if (canEditBranch && branchId && updateData.branchId) {
+        await syncUserLocationFromBranch({ userId: member.id, branchId: updateData.branchId });
+      }
+
       setSaved(true);
       setTimeout(() => {
         navigate(`/members/${member.id}`);
@@ -216,191 +261,231 @@ export function EditMemberProfilePage() {
   }
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <button
-            className="group flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors mb-4"
-            onClick={() => navigate(`/members/${member.id}`)}
-          >
-            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Back to Profile
-          </button>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/60 flex items-center justify-center text-white text-2xl font-black">
-              {fullName?.charAt(0) || 'M'}
+    <div className="space-y-8 pb-20">
+      {/* Premium Header */}
+      <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--card)] via-[var(--bg-alt)] to-[var(--card)] border border-[var(--border)] p-8">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-cyan-500/20 to-transparent rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-violet-500/15 to-transparent rounded-full blur-3xl" />
+        </div>
+
+        <div className="relative flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <button
+              className="group flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)] hover:text-cyan-400 transition-colors mb-5"
+              onClick={() => navigate(`/members/${member.id}`)}
+            >
+              <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              Back to Profile
+            </button>
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center text-black text-2xl font-black shadow-xl shadow-cyan-500/25">
+                {fullName?.charAt(0) || 'M'}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-[var(--text)]">Edit Profile</h1>
+                <p className="text-[var(--text-muted)] text-sm mt-1">
+                  {member.fullName}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1>Edit Profile</h1>
-              <p className="text-sm text-[var(--text-muted)]">
-                {member.fullName}
-              </p>
-            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+            <span className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5" />
+              {city || 'No city'}
+            </span>
+            <span className="w-1 h-1 rounded-full bg-[var(--border-light)]" />
+            <span className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" />
+              {country || 'India'}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Success Message */}
+      {/* Premium Success Message */}
       {saved && (
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 flex items-center gap-2">
+        <div className="p-4 bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/30 rounded-xl text-emerald-400 flex items-center gap-2">
           <Save className="w-5 h-5" />
           Profile saved successfully!
         </div>
       )}
 
-      {/* Contact Info */}
-      <div className="panel">
-        <div className="flex items-center gap-2 mb-6">
-          <UserIcon className="w-5 h-5 text-[var(--primary)]" />
-          <h2 className="text-lg font-bold">Personal Information</h2>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="input w-full"
-              placeholder="Enter your full name"
-            />
+      {/* Premium Contact Info */}
+      <div className="group relative overflow-hidden rounded-2xl bg-[var(--card)] border border-[var(--border)] backdrop-blur-md p-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-6">
+            <UserIcon className="w-5 h-5 text-cyan-500" />
+            <h2 className="text-lg font-semibold text-[var(--text)]">Personal Information</h2>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              Email (read-only)
-            </label>
-            <input
-              type="email"
-              value={member.email || ''}
-              disabled
-              className="input w-full bg-[var(--card-subtle)] opacity-60"
-            />
-          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="input w-full bg-[var(--input-bg)] border-[var(--border)] text-[var(--text)] placeholder-[var(--text-muted)] focus:border-cyan-500/50 focus:ring-cyan-500/20"
+                placeholder="Enter your full name"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              <Phone className="w-4 h-4 inline mr-1" />
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="input w-full"
-              placeholder="+91 98765 43210"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Email (read-only)
+              </label>
+              <input
+                type="email"
+                value={member.email || ''}
+                disabled
+                className="input w-full bg-[var(--card-subtle)] border-[var(--border)] text-[var(--text-muted)] opacity-60"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              <Phone className="w-4 h-4 inline mr-1" />
-              Alternate Phone
-            </label>
-            <input
-              type="tel"
-              value={alternatePhone}
-              onChange={(e) => setAlternatePhone(e.target.value)}
-              className="input w-full"
-              placeholder="+91 98765 43210"
-            />
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                <Phone className="w-4 h-4 inline mr-1" />
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="input w-full bg-[var(--input-bg)] border-[var(--border)] text-[var(--text)] placeholder-[var(--text-muted)] focus:border-cyan-500/50 focus:ring-cyan-500/20"
+                placeholder="+91 98765 43210"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                <Phone className="w-4 h-4 inline mr-1" />
+                Alternate Phone
+              </label>
+              <input
+                type="tel"
+                value={alternatePhone}
+                onChange={(e) => setAlternatePhone(e.target.value)}
+                className="input w-full bg-[var(--input-bg)] border-[var(--border)] text-[var(--text)] placeholder-[var(--text-muted)] focus:border-cyan-500/50 focus:ring-cyan-500/20"
+                placeholder="+91 98765 43210"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Location (read-only - assigned via branch) */}
-      <div className="panel">
-        <div className="flex items-center gap-2 mb-6">
-          <Building className="w-5 h-5 text-[var(--primary)]" />
-          <h2 className="text-lg font-bold">Location</h2>
-          <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded ml-auto">Read-only (via branch)</span>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              State (assigned via branch)
-            </label>
-            <input
-              type="text"
-              value={STATE_OPTIONS.find(s => s.id === state)?.name || state || ''}
-              disabled
-              className="input w-full bg-[var(--card-subtle)] opacity-60"
-            />
+      {/* Premium Location (read-only - assigned via branch) */}
+      <div className="group relative overflow-hidden rounded-2xl bg-[var(--card)] border border-[var(--border)] backdrop-blur-md p-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-6">
+            <Building className="w-5 h-5 text-violet-500" />
+            <h2 className="text-lg font-semibold text-[var(--text)]">Location</h2>
+            <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded ml-auto">Read-only (via branch)</span>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-              City (assigned via branch)
-            </label>
-            <input
-              type="text"
-              value={CITIES_BY_STATE[state]?.find(c => c.id === city)?.name || city || ''}
-              disabled
-              className="input w-full bg-[var(--card-subtle)] opacity-60"
-            />
+          <div className="grid md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                State (from branch)
+              </label>
+              <input
+                type="text"
+                value={state || ''}
+                disabled
+                className="input w-full bg-[var(--card-subtle)] border-[var(--border)] text-[var(--text-muted)] opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                City (from branch)
+              </label>
+              <input
+                type="text"
+                value={city || ''}
+                disabled
+                className="input w-full bg-[var(--card-subtle)] border-[var(--border)] text-[var(--text-muted)] opacity-60"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                Country (from branch)
+              </label>
+              <input
+                type="text"
+                value={country || ''}
+                disabled
+                className="input w-full bg-[var(--card-subtle)] border-[var(--border)] text-[var(--text-muted)] opacity-60"
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Branch Assignment (Admin only) */}
       {canEditBranch && (
-        <div className="panel">
-          <div className="flex items-center gap-2 mb-6">
-            <Building className="w-5 h-5 text-[var(--primary)]" />
-            <h2 className="text-lg font-bold">Branch Assignment</h2>
-            <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded">Admin Only</span>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Branch
-              </label>
-              <select
-                value={branchId}
-                onChange={(e) => {
-                  setBranchId(e.target.value);
-                  setBranchName(branches.find(b => b.id === e.target.value)?.name || '');
-                }}
-                className="input w-full"
-              >
-                <option value="">Select Branch</option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
+        <div className="group relative overflow-hidden rounded-2xl bg-[var(--card)] border border-[var(--border)] backdrop-blur-md p-6">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-6">
+              <Building className="w-5 h-5 text-amber-500" />
+              <h2 className="text-lg font-semibold text-[var(--text)]">Branch Assignment</h2>
+              <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-1 rounded">Admin Only</span>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-muted)] mb-2">
-                Current Branch
-              </label>
-              <div className="input w-full bg-[var(--card-subtle)] flex items-center">
-                {branchName || 'Not assigned'}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Branch
+                </label>
+                <select
+                  value={branchId}
+                  onChange={(e) => {
+                    setBranchId(e.target.value);
+                    setBranchName(branches.find(b => b.id === e.target.value)?.name || '');
+                  }}
+                  className="input w-full bg-[var(--input-bg)] border-[var(--border)] text-[var(--text)]"
+                >
+                  <option value="">Select Branch</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Current Branch
+                </label>
+                <div className="input w-full bg-[var(--card-subtle)] border-[var(--border)] text-[var(--text-muted)] flex items-center">
+                  {branchName || 'Not assigned'}
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-4">
+      {/* Premium Actions */}
+      <div className="flex gap-4 pt-4">
         <button
           onClick={handleSave}
           disabled={saving}
-          className="btn btn-primary flex items-center gap-2"
+          className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 text-black font-medium flex items-center gap-2 shadow-lg shadow-cyan-500/25 transition-all hover:shadow-xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
         <button
           onClick={() => navigate(`/members/${member.id}`)}
-          className="btn btn-secondary flex items-center gap-2"
+          className="px-6 py-3 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] text-[var(--text-secondary)] font-medium flex items-center gap-2 transition-all hover:bg-[var(--border)]"
         >
           <X className="w-4 h-4" />
           Cancel
