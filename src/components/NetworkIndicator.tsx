@@ -20,7 +20,7 @@ export function NetworkIndicator() {
   if (isOnline) return null;
 
   return (
-    <div className="fixed bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 bg-yellow-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 text-sm z-50">
+    <div className="fixed bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 bg-amber-600 text-black px-4 py-2 rounded-full shadow-lg flex items-center space-x-2 text-sm z-50 font-bold">
       <WifiOff size={16} />
       <span>Offline Mode - Pending Sync</span>
     </div>
