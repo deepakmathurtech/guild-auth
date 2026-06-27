@@ -11,7 +11,8 @@ import {
   ArrowRight, Check, X, Eye, Edit, Trash2, Send, Award, Star,
   ArrowRightLeft, HandHeart, Sparkles, BriefcaseBusiness,
   ClipboardList, IndianRupee, Gauge, Flag, Settings, Link2,
-  Calendar, TrendingDown, ShieldCheck, UserPlus, Building
+  Calendar, TrendingDown, ShieldCheck, UserPlus, Building,
+  HeartPulse
 } from 'lucide-react';
 import { auditQuestHealth, type HealthIssue } from '../../services/healthService';
 import { StatsService } from '../../services/statsService';
@@ -45,6 +46,7 @@ export function FounderDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'health' | 'structure'>('overview');
 
   // Data state
@@ -246,6 +248,55 @@ export function FounderDashboard() {
     setApproving(null);
   }
 
+  async function handleReject(item: PendingItem) {
+    if (!profile) return;
+    setRejecting(item.id);
+    try {
+      if (item.type === 'applicant' || item.type === 'verification') {
+        // Reject/remove user - archive them
+        await updateDoc(doc(db, 'users', item.entityId), {
+          archiveStatus: 'archived',
+          updatedAt: new Date().toISOString()
+        });
+      } else if (item.type === 'submission') {
+        // Reject quest submission
+        await updateDoc(doc(db, 'quests', item.entityId), {
+          status: 'rejected',
+          updatedAt: new Date().toISOString()
+        });
+      } else if (item.type === 'need') {
+        // Archive/reject need
+        await updateDoc(doc(db, 'needs', item.entityId), {
+          status: 'rejected',
+          updatedAt: new Date().toISOString()
+        });
+      } else if (item.type === 'revenue') {
+        // Dismiss/ignore revenue event
+        await updateDoc(doc(db, 'revenueEvents', item.entityId), {
+          status: 'dismissed',
+          updatedAt: new Date().toISOString()
+        });
+      }
+      // Refresh data
+      const [users, quests, needs, revenue] = await Promise.all([
+        getDocs(query(collection(db, 'users'))),
+        getDocs(query(collection(db, 'quests'))),
+        getDocs(query(collection(db, 'needs'))),
+        getDocs(query(collection(db, 'revenueEvents')))
+      ]);
+      setData(prev => ({
+        ...prev,
+        users: users.docs.map(d => d.data() as GuildUser),
+        quests: quests.docs.map(d => d.data() as Quest),
+        needs: needs.docs.map(d => d.data() as Need),
+        revenue: revenue.docs.map(d => d.data() as RevenueEvent)
+      }));
+    } catch (err: any) {
+      alert(err.message);
+    }
+    setRejecting(null);
+  }
+
   function getStateHealth(stateId: string) {
     const stateUsers = data.users.filter(u => u.jurisdiction?.stateId === stateId).length;
     const stateOrgs = data.organizations.filter(o => o.jurisdiction?.stateId === stateId).length;
@@ -296,15 +347,18 @@ export function FounderDashboard() {
                 </p>
               </div>
               <div className="flex gap-4">
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md text-center min-w-[140px]">
+                <div className="group relative overflow-hidden p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md text-center min-w-[140px] transition-all hover:bg-white/10 hover:border-white/20 hover:scale-105 hover:shadow-2xl hover:shadow-amber-500/20">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="block text-3xl font-bold tracking-tighter mb-1">{data.users.length}</span>
                   <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-widest">Members</span>
                 </div>
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md text-center min-w-[140px]">
+                <div className="group relative overflow-hidden p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md text-center min-w-[140px] transition-all hover:bg-white/10 hover:border-white/20 hover:scale-105 hover:shadow-2xl hover:shadow-amber-500/20">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className="block text-3xl font-bold tracking-tighter mb-1">₹{(metrics.totalRev / 1000).toFixed(1)}k</span>
                   <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-widest">Revenue</span>
                 </div>
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md text-center min-w-[140px]">
+                <div className="group relative overflow-hidden p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md text-center min-w-[140px] transition-all hover:bg-white/10 hover:border-white/20 hover:scale-105 hover:shadow-2xl hover:shadow-amber-500/20">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/20 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                   <span className={`block text-3xl font-bold tracking-tighter mb-1 ${metrics.criticalIssues > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>{metrics.criticalIssues}</span>
                   <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-widest">Critical</span>
                 </div>
@@ -326,74 +380,82 @@ export function FounderDashboard() {
             })}
           </div>
 
-          {/* KPIs */}
-          <div className="metrics-grid">
-            <div className="metric-card bg-blue-500/5 border-blue-500/10">
+          {/* KPIs - Premium Animated Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="metric-card bg-blue-500/5 border-blue-500/10 hover:bg-blue-500/10 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1 transition-all">
               <div className="flex justify-between items-start">
-                <span className="text-blue-500/60 font-bold">States</span>
+                <span className="text-blue-500/70 font-bold text-xs uppercase tracking-wide">States</span>
                 <Globe className="w-4 h-4 text-blue-500" />
               </div>
-              <strong className="text-blue-500">{data.states.length}</strong>
+              <strong className="text-blue-500 text-2xl font-black">{data.states.length}</strong>
             </div>
-            <div className="metric-card bg-purple-500/5 border-purple-500/10">
+            <div className="metric-card bg-purple-500/5 border-purple-500/10 hover:bg-purple-500/10 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-1 transition-all">
               <div className="flex justify-between items-start">
-                <span className="text-purple-500/60 font-bold">Guild Masters</span>
+                <span className="text-purple-500/70 font-bold text-xs uppercase tracking-wide">Guild Masters</span>
                 <Shield className="w-4 h-4 text-purple-500" />
               </div>
-              <strong className="text-purple-500">{metrics.totalMasters}</strong>
+              <strong className="text-purple-500 text-2xl font-black">{metrics.totalMasters}</strong>
             </div>
-            <div className="metric-card bg-emerald-500/5 border-emerald-500/10">
+            <div className="metric-card bg-emerald-500/5 border-emerald-500/10 hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1 transition-all">
               <div className="flex justify-between items-start">
-                <span className="text-emerald-500/60 font-bold">Live Quests</span>
+                <span className="text-emerald-500/70 font-bold text-xs uppercase tracking-wide">Live Quests</span>
                 <Target className="w-4 h-4 text-emerald-500" />
               </div>
-              <strong className="text-emerald-500">{metrics.activeQuests}</strong>
+              <strong className="text-emerald-500 text-2xl font-black">{metrics.activeQuests}</strong>
             </div>
-            <div className="metric-card bg-amber-500/5 border-amber-500/10">
+            <div className="metric-card bg-amber-500/5 border-amber-500/10 hover:bg-amber-500/10 hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1 transition-all">
               <div className="flex justify-between items-start">
-                <span className="text-amber-500/60 font-bold">Pending</span>
+                <span className="text-amber-500/70 font-bold text-xs uppercase tracking-wide">Pending</span>
                 <Clock className="w-4 h-4 text-amber-500" />
               </div>
-              <strong className="text-amber-500">{metrics.totalPending}</strong>
+              <strong className="text-amber-500 text-2xl font-black">{metrics.totalPending}</strong>
             </div>
-            <div className="metric-card bg-cyan-500/5 border-cyan-500/10">
+            <div className="metric-card bg-cyan-500/5 border-cyan-500/10 hover:bg-cyan-500/10 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-1 transition-all">
               <div className="flex justify-between items-start">
-                <span className="text-cyan-500/60 font-bold">Organizations</span>
+                <span className="text-cyan-500/70 font-bold text-xs uppercase tracking-wide">Organizations</span>
                 <Building2 className="w-4 h-4 text-cyan-500" />
               </div>
-              <strong className="text-cyan-500">{data.organizations.length}</strong>
+              <strong className="text-cyan-500 text-2xl font-black">{data.organizations.length}</strong>
             </div>
-            <div className="metric-card bg-rose-500/5 border-rose-500/10">
+            <div className="metric-card bg-rose-500/5 border-rose-500/10 hover:bg-rose-500/10 hover:border-rose-500/30 hover:shadow-lg hover:shadow-rose-500/10 hover:-translate-y-1 transition-all">
               <div className="flex justify-between items-start">
-                <span className="text-rose-500/60 font-bold">Critical Issues</span>
+                <span className="text-rose-500/70 font-bold text-xs uppercase tracking-wide">Critical</span>
                 <AlertCircle className="w-4 h-4 text-rose-500" />
               </div>
-              <strong className="text-rose-500">{metrics.criticalIssues}</strong>
+              <strong className="text-rose-500 text-2xl font-black">{metrics.criticalIssues}</strong>
             </div>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-[1fr_350px] gap-8">
             {/* Main Column */}
             <div className="space-y-8">
-              {/* Pending Applicants */}
+              {/* Pending Applicants - Premium Cards */}
               {pendingApplicants.length > 0 && (
                 <section className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <UserCheck className="w-5 h-5 text-[var(--primary)]" />
-                    <h2 className="text-lg font-bold tracking-tight">Pending Applications ({pendingApplicants.length})</h2>
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                      <UserCheck className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold tracking-tight">Pending Applications ({pendingApplicants.length})</h2>
+                      <p className="text-xs text-[var(--text-muted)]">Review and approve new members</p>
+                    </div>
                   </div>
-                  <div className="grid md:grid-cols-2 gap-3">
+                  <div className="grid md:grid-cols-2 gap-4">
                     {pendingApplicants.slice(0, 6).map(u => (
-                      <div key={u.uid} className="panel p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 hover:border-[var(--primary)]/30 transition-all">
-                        <div>
-                          <p className="font-bold text-sm mb-1">{u.fullName}</p>
-                          <p className="text-xs text-[var(--text-muted)] flex items-center gap-1">
-                            <MapPin className="w-3 h-3" /> {u.jurisdiction?.cityName}, {u.jurisdiction?.stateName}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          <button className="secondary !py-1.5 !px-2 text-[10px]" disabled={!!approving} onClick={() => handleApprove(u.uid, 'member')}>Member</button>
-                          <button className="primary !py-1.5 !px-2 text-[10px]" disabled={!!approving} onClick={() => handleApprove(u.uid, 'receptionist')}>Receptionist</button>
+                      <div key={u.uid} className="group relative overflow-hidden panel rounded-xl p-4 hover:border-amber-500/30 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-amber-500/10">
+                        <div className="absolute top-0 right-0 w-12 h-12 bg-amber-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                          <div>
+                            <p className="font-bold text-sm mb-1">{u.fullName}</p>
+                            <p className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                              <MapPin className="w-3 h-3" /> {u.jurisdiction?.cityName}, {u.jurisdiction?.stateName}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <button className="secondary !py-1.5 !px-2 text-[10px]" disabled={!!approving} onClick={() => handleApprove(u.uid, 'member')}>Member</button>
+                            <button className="primary !py-1.5 !px-2 text-[10px]" disabled={!!approving} onClick={() => handleApprove(u.uid, 'receptionist')}>Receptionist</button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -436,20 +498,28 @@ export function FounderDashboard() {
 
             {/* Sidebar */}
             <aside className="space-y-6">
-              {/* State Performance */}
+              {/* State Performance - Premium List */}
               <section className="space-y-4">
-                <h2 className="text-lg font-bold tracking-tight">State Performance</h2>
-                <div className="grid gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center">
+                    <Globe className="w-5 h-5 text-cyan-500" />
+                  </div>
+                  <h2 className="text-lg font-bold tracking-tight">State Performance</h2>
+                </div>
+                <div className="space-y-2">
                   {data.states.slice(0, 10).map(state => {
                     const stats = getStateHealth(state.id);
                     return (
-                      <div key={state.id} className="panel p-3 flex justify-between items-center group hover:bg-[var(--card-subtle)]">
-                        <div>
-                          <p className="font-bold text-sm">{state.name}</p>
-                          <p className="text-[10px] text-[var(--text-muted)]">{stats.users} Members</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-sm text-[var(--primary)]">₹{stats.revenue.toLocaleString('en-IN')}</p>
+                      <div key={state.id} className="group relative overflow-hidden panel rounded-xl p-3 hover:border-cyan-500/30 transition-all hover:-translate-y-0.5">
+                        <div className="absolute top-0 right-0 w-8 h-8 bg-cyan-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative flex justify-between items-center">
+                          <div>
+                            <p className="font-bold text-sm">{state.name}</p>
+                            <p className="text-[10px] text-[var(--text-muted)]">{stats.users} Members</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-sm text-emerald-500">₹{stats.revenue.toLocaleString('en-IN')}</p>
+                          </div>
                         </div>
                       </div>
                     );
@@ -457,9 +527,12 @@ export function FounderDashboard() {
                 </div>
               </section>
 
-              {/* System Health */}
-              <section className="panel p-5 bg-gradient-to-br from-[var(--primary)]/5 to-transparent border-[var(--primary)]/10">
-                <h3 className="text-sm font-bold uppercase tracking-widest mb-3 text-[var(--primary)]">System Health</h3>
+              {/* System Health - Premium Card */}
+              <section className="panel p-5 rounded-xl bg-gradient-to-br from-emerald-500/10 via-cyan-500/5 to-transparent border border-emerald-500/20">
+                <div className="flex items-center gap-2 mb-4">
+                  <HeartPulse className={`w-5 h-5 ${metrics.healthScore >= 70 ? 'text-emerald-500' : metrics.healthScore >= 40 ? 'text-amber-500' : 'text-rose-500'}`} />
+                  <h3 className="text-sm font-bold uppercase tracking-widest">System Health</h3>
+                </div>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-[var(--text-muted)]">Health Score</span>
@@ -509,6 +582,9 @@ export function FounderDashboard() {
                       <>
                         <button className="secondary !py-2 !px-3 text-xs" onClick={() => handleApprove(item.entityId, 'member')}>Member</button>
                         <button className="primary !py-2 !px-3 text-xs" onClick={() => handleApprove(item.entityId, 'receptionist')}>Receptionist</button>
+                        <button className="!py-2 !px-2 text-xs !text-rose-500 hover:!bg-rose-500/10 border border-rose-500/30 rounded" onClick={() => handleReject(item)} disabled={rejecting === item.id}>
+                          {rejecting === item.id ? '...' : 'Reject'}
+                        </button>
                       </>
                     )}
                     {item.type === 'verification' && (
@@ -523,6 +599,14 @@ export function FounderDashboard() {
                     {item.type === 'revenue' && (
                       <button className="secondary !py-2 !px-3 text-xs" onClick={() => navigate(`/revenue`)}>Verify</button>
                     )}
+                    {/* Dismiss/Reject button for all types */}
+                    <button
+                      className="!py-2 !px-3 text-xs !text-rose-500 hover:!bg-rose-500/10 border border-rose-500/30 rounded"
+                      onClick={() => handleReject(item)}
+                      disabled={rejecting === item.id}
+                    >
+                      {rejecting === item.id ? 'Dismissing...' : 'Dismiss'}
+                    </button>
                   </div>
                 </div>
               ))}
