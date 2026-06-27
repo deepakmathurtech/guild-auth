@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { collection, getDocs, limit, query, where, orderBy, getCountFromServer, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { NotificationService } from '../services/notificationService';
 import { Search, Filter, MoreVertical, Mail, Phone, MapPin, BadgeCheck, AlertCircle, Clock, CheckCircle, XCircle, ArrowUpCircle, Star, Trash2, Eye, UserPlus, UserMinus, Send } from 'lucide-react';
 import type { User } from '../types/guild';
 
@@ -54,6 +55,10 @@ export function MembersPage() {
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [actionMenuFor, setActionMenuFor] = useState<string | null>(null);
   const [promoteDialogFor, setPromoteDialogFor] = useState<string | null>(null);
+  const [messageDialogFor, setMessageDialogFor] = useState<{ userId: string; name: string } | null>(null);
+  const [messageBody, setMessageBody] = useState('');
+  const [messageTitle, setMessageTitle] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState('');
   const [actioning, setActioning] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
@@ -676,7 +681,7 @@ export function MembersPage() {
                               )
                             )}
                             <button
-                              onClick={() => { setActionMenuFor(null); }}
+                              onClick={() => { setActionMenuFor(null); setMessageDialogFor({ userId: member.id, name: member.fullName || 'Unknown' }); }}
                               className="w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--card-subtle)] transition-colors"
                             >
                               <Send className="w-4 h-4" />
@@ -731,6 +736,68 @@ export function MembersPage() {
                 className="primary flex-1 py-3"
               >
                 {actioning ? 'Promoting...' : 'Confirm Promotion'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Send Message Dialog */}
+      {messageDialogFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scale-in">
+            <h3 className="text-lg font-bold mb-2">Send Message</h3>
+            <p className="text-sm text-[var(--text-muted)] mb-4">
+              Sending to: {messageDialogFor.name}
+            </p>
+            <input
+              type="text"
+              value={messageTitle}
+              onChange={e => setMessageTitle(e.target.value)}
+              placeholder="Message title..."
+              className="input w-full mb-3"
+            />
+            <textarea
+              value={messageBody}
+              onChange={e => setMessageBody(e.target.value)}
+              placeholder="Message body..."
+              rows={4}
+              className="input w-full mb-4 resize-none"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setMessageDialogFor(null); setMessageTitle(''); setMessageBody(''); }}
+                className="secondary flex-1 py-3"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!messageTitle.trim() || !messageBody.trim() || !profile) return;
+                  setSendingMessage(true);
+                  try {
+                    await NotificationService.notify(
+                      messageDialogFor.userId,
+                      'general_alert',
+                      messageTitle.trim(),
+                      messageBody.trim(),
+                      'medium',
+                      profile,
+                      { deduplicate: false, aggregate: false }
+                    );
+                    setMessageDialogFor(null);
+                    setMessageTitle('');
+                    setMessageBody('');
+                  } catch (err) {
+                    console.error('Failed to send message:', err);
+                  } finally {
+                    setSendingMessage(false);
+                  }
+                }}
+                disabled={sendingMessage || !messageTitle.trim() || !messageBody.trim()}
+                className="primary flex-1 py-3"
+              >
+                {sendingMessage ? 'Sending...' : 'Send'}
               </button>
             </div>
           </div>
