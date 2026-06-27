@@ -655,7 +655,8 @@ export function MembersPage() {
                               <Eye className="w-4 h-4 text-[var(--primary)]" />
                               View Profile
                             </Link>
-                            {member.verificationStatus === 'pending' && (
+                            {/* Only show approve/reject for non-staff target OR if current user can manage staff */}
+                            {member.verificationStatus === 'pending' && (!profile?.role || profile.role === 'receptionist' ? member.role === 'member' || member.role === 'contributor' : true) && (
                               <button
                                 onClick={() => { handleQuickAction(member.id, 'status', 'verified'); setActionMenuFor(null); }}
                                 disabled={actioning}
@@ -665,7 +666,7 @@ export function MembersPage() {
                                 Approve
                               </button>
                             )}
-                            {member.verificationStatus !== 'rejected' && (
+                            {member.verificationStatus !== 'rejected' && (!profile?.role || profile.role === 'receptionist' ? member.role === 'member' || member.role === 'contributor' : true) && (
                               <button
                                 onClick={() => { handleQuickAction(member.id, 'status', 'rejected'); setActionMenuFor(null); }}
                                 disabled={actioning}
