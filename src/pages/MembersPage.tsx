@@ -96,14 +96,22 @@ export function MembersPage() {
         });
         setCounts(roleCounts);
 
-        // Filter by jurisdiction in memory
+        // Filter by jurisdiction in memory - but staff can see their city and also all members
         let membersToSet = allUsers;
-        if (!['guildFounder', 'centralGuildMaster', 'founder'].includes(profile.role)) {
-          if (profile.role === 'stateGuildMaster') {
-            membersToSet = allUsers.filter((u: any) => u.jurisdiction?.stateId === profile.jurisdiction.stateId);
-          } else {
-            membersToSet = allUsers.filter((u: any) => u.jurisdiction?.cityId === profile.jurisdiction.cityId);
-          }
+        const isAdmin = ['guildFounder', 'centralGuildMaster', 'founder'].includes(profile.role);
+        const isStateAdmin = profile.role === 'stateGuildMaster';
+        const isCityStaff = ['receptionist', 'cityGuildMaster'].includes(profile.role);
+
+        if (!isAdmin && !isStateAdmin && isCityStaff) {
+          // Staff users see their city users PLUS all members (not staff) - for managing member submissions
+          membersToSet = allUsers.filter((u: any) => {
+            // Always show non-staff members (role: member or contributor)
+            if (u.role === 'member' || u.role === 'contributor') return true;
+            // Show same city staff
+            return u.jurisdiction?.cityId === profile.jurisdiction.cityId;
+          });
+        } else if (isStateAdmin) {
+          membersToSet = allUsers.filter((u: any) => u.jurisdiction?.stateId === profile.jurisdiction.stateId || u.role === 'member' || u.role === 'contributor');
         }
 
         // Sort by createdAt desc in memory
@@ -163,6 +171,25 @@ export function MembersPage() {
 
   async function handleQuickAction(memberId: string, action: string, value: string, branchId?: string, branchName?: string) {
     if (!profile || actioning) return;
+
+    // Find the target member
+    const targetMember = members.find(m => m.id === memberId);
+    if (!targetMember) return;
+
+    // RBAC: Receptionists cannot modify other staff roles
+    const isTargetStaff = ['receptionist', 'cityGuildMaster', 'stateGuildMaster', 'centralGuildMaster'].includes(targetMember.role);
+    if (profile.role === 'receptionist' && isTargetStaff) {
+      alert('You cannot modify staff user roles');
+      return;
+    }
+
+    // RBAC: Cannot promote to equal or higher role
+    const roleHierarchy = ['founder', 'guildFounder', 'centralGuildMaster', 'stateGuildMaster', 'cityGuildMaster', 'receptionist', 'contributor', 'member'];
+    if (action === 'role' && roleHierarchy.indexOf(value) <= roleHierarchy.indexOf(profile.role)) {
+      alert('You cannot assign this role');
+      return;
+    }
+
     setActioning(true);
 
     try {
