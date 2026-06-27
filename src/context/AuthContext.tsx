@@ -23,24 +23,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribeAuth = subscribeToAuth(async (user) => {
       setFirebaseUser(user);
       unsubscribeProfile?.();
-      
+
       if (!user) {
         setProfile(null);
         setLoading(false);
         return;
       }
-      
+
       try {
         await ensureUserProfile(user);
         unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
-          setProfile(snapshot.exists() ? (snapshot.data() as GuildUser) : null);
+          if (!snapshot.exists()) {
+            // User document deleted or doesn't exist - force re-login
+            console.warn('User profile not found, redirecting to login');
+            setProfile(null);
+          } else {
+            setProfile(snapshot.data() as GuildUser);
+          }
           setLoading(false);
         }, (err) => {
-          console.error('Profile snapshot error:', err);
+          // Handle Firestore errors (permission denied, not found, etc.)
+          console.error('Profile snapshot error:', err.code, err.message);
+          // If document doesn't exist or permission denied, clear profile
+          if (err.code === 'not-found' || err.code === 'permission-denied') {
+            setProfile(null);
+          }
           setLoading(false);
         });
-      } catch (err) {
-        console.error('Auth initialization error:', err);
+      } catch (err: any) {
+        console.error('Auth initialization error:', err?.message || err);
+        setProfile(null);
         setLoading(false);
       }
     });
