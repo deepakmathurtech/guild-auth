@@ -333,24 +333,24 @@ export function OrganizationDetailsPage() {
              </h3>
 
              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
-                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Needs Processed</p>
-                  <p className="text-xl font-bold text-white">{org.needsProcessed || 0}</p>
+                <div className="p-3 rounded-xl bg-[var(--bg-alt)] border border-[var(--border)]">
+                  <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Needs Processed</p>
+                  <p className="text-xl font-bold text-[var(--text)]">{org.needsProcessed || 0}</p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
-                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Opportunities</p>
-                  <p className="text-xl font-bold text-white">{org.opportunitiesCreated || 0}</p>
+                <div className="p-3 rounded-xl bg-[var(--bg-alt)] border border-[var(--border)]">
+                  <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Opportunities</p>
+                  <p className="text-xl font-bold text-[var(--text)]">{org.opportunitiesCreated || 0}</p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
-                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Quests Created</p>
-                  <p className="text-xl font-bold text-white">{org.questsCreated || quests.length}</p>
+                <div className="p-3 rounded-xl bg-[var(--bg-alt)] border border-[var(--border)]">
+                  <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Quests Created</p>
+                  <p className="text-xl font-bold text-[var(--text)]">{org.questsCreated || quests.length}</p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
-                  <p className="text-[9px] font-bold text-white/40 uppercase tracking-wider mb-1">Outcomes</p>
-                  <p className="text-xl font-bold text-white">{org.outcomesDelivered || 0}</p>
+                <div className="p-3 rounded-xl bg-[var(--bg-alt)] border border-[var(--border)]">
+                  <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Outcomes</p>
+                  <p className="text-xl font-bold text-[var(--text)]">{org.outcomesDelivered || 0}</p>
                 </div>
 
                 {/* Revenue Section */}
@@ -360,28 +360,28 @@ export function OrganizationDetailsPage() {
                   </p>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <p className="text-white/40">Paid Quests</p>
+                      <p className="text-[var(--text-muted)]">Paid Quests</p>
                       <p className="font-bold text-emerald-400">{revenueStats.paidQuests}</p>
                     </div>
                     <div>
-                      <p className="text-white/40">Guild Revenue</p>
-                      <p className="font-bold text-white">₹{revenueStats.guildRevenue.toLocaleString()}</p>
+                      <p className="text-[var(--text-muted)]">Guild Revenue</p>
+                      <p className="font-bold text-[var(--text)]">₹{revenueStats.guildRevenue.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-white/40">Outstanding</p>
+                      <p className="text-[var(--text-muted)]">Outstanding</p>
                       <p className="font-bold text-amber-400">₹{revenueStats.outstanding.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-white/40">Total Paid</p>
-                      <p className="font-bold text-white">₹{revenueStats.total.toLocaleString()}</p>
+                      <p className="text-[var(--text-muted)]">Total Paid</p>
+                      <p className="font-bold text-[var(--text)]">₹{revenueStats.total.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
              </div>
 
              <div className="mt-6 space-y-3">
-               <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-4 text-center">Relationship Maturity</p>
-               <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+               <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-[0.2em] mb-4 text-center">Relationship Maturity</p>
+               <div className="h-1.5 w-full bg-[var(--border)] rounded-full overflow-hidden">
                   <div className="h-full bg-[var(--primary)] rounded-full" style={{ width: `${Math.min(({ new: 25, verified: 50, trusted: 75, partner: 100 }[org.trustLevel] || 25), 100)}%` }} />
                </div>
              </div>

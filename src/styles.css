@@ -109,7 +109,7 @@
 
   select option:checked {
     background-color: var(--primary);
-    color: #000;
+    color: var(--text);
   }
   
   textarea {

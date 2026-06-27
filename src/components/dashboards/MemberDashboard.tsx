@@ -98,7 +98,7 @@ export function MemberDashboard({ opportunities, submissions, revenue }: Props) 
            <p className="eyebrow">Member Portal</p>
            <h1 className="text-4xl md:text-5xl font-bold mb-6">Hello, {profile?.fullName.split(' ')[0]}</h1>
            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold backdrop-blur-sm">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--card-subtle)] border border-[var(--border)] text-xs font-semibold backdrop-blur-sm">
                  <MapPin size={14} className="text-[var(--primary)]" />
                  {profile?.jurisdiction.cityName}, {profile?.jurisdiction.stateName}
               </div>

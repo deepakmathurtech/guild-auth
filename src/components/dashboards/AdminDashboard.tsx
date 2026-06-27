@@ -125,7 +125,7 @@ export function AdminDashboard({ organizations, revenue, logs }: Props) {
                ))}
             </div>
             <div className="p-2 bg-[var(--bg-alt)] text-center text-xs">
-               <button className="ghost text-[var(--muted)] hover:text-white">View Full Audit Log &rarr;</button>
+               <button className="ghost text-[var(--muted)] hover:text-[var(--text)]">View Full Audit Log &rarr;</button>
             </div>
           </section>
         </div>

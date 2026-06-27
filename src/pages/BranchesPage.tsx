@@ -289,13 +289,13 @@ export function BranchesPage() {
               onClick={() => setActiveTab(activeTab === 'branches' ? 'requests' : 'branches')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm ${
                 activeTab === 'requests'
-                  ? 'bg-[var(--primary)] text-white'
+                  ? 'bg-[var(--primary)] text-black'
                   : 'border border-[var(--border)] hover:border-[var(--primary)]/50'
               }`}
             >
               <Clock className="w-4 h-4" />
               Requests
-              <span className="bg-amber-500 text-white text-xs px-1.5 rounded-full">{branchRequests.length}</span>
+              <span className="bg-amber-500 text-black text-xs px-1.5 rounded-full">{branchRequests.length}</span>
             </button>
           )}
           {canManageBranch && (
@@ -328,7 +328,7 @@ export function BranchesPage() {
             }`}
           >
             Requests
-            <span className="bg-amber-500 text-white text-xs px-1.5 rounded-full">{branchRequests.length}</span>
+            <span className="bg-amber-500 text-black text-xs px-1.5 rounded-full">{branchRequests.length}</span>
           </button>
           <button
             onClick={async () => {
