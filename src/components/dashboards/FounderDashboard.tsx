@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { auditQuestHealth, type HealthIssue } from '../../services/healthService';
 import { StatsService } from '../../services/statsService';
-import { approveUserRole } from '../../services/workflowService';
+import { approveUserRole, rejectUserRole } from '../../services/workflowService';
+import { updateLedgerRecord } from '../../lib/repository';
 import { StatusBadge } from '../StatusBadge';
 import { roleLabels } from '../../lib/rbac';
 import { useNavigate } from 'react-router-dom';
@@ -253,29 +254,23 @@ export function FounderDashboard() {
     setRejecting(item.id);
     try {
       if (item.type === 'applicant' || item.type === 'verification') {
-        // Reject/remove user - archive them
-        await updateDoc(doc(db, 'users', item.entityId), {
-          archiveStatus: 'archived',
-          updatedAt: new Date().toISOString()
-        });
+        // Use proper rejectUserRole with notification
+        await rejectUserRole(item.entityId, 'Rejected via dashboard', profile);
       } else if (item.type === 'submission') {
-        // Reject quest submission
-        await updateDoc(doc(db, 'quests', item.entityId), {
-          status: 'rejected',
-          updatedAt: new Date().toISOString()
-        });
+        // Cancel quest submission - mark as cancelled with ledger record
+        await updateLedgerRecord('quests', item.entityId, {
+          status: 'cancelled'
+        }, profile, 'Quest Cancelled via Dashboard');
       } else if (item.type === 'need') {
-        // Archive/reject need
-        await updateDoc(doc(db, 'needs', item.entityId), {
-          status: 'rejected',
-          updatedAt: new Date().toISOString()
-        });
+        // Archive/dismiss need - hide from active list
+        await updateLedgerRecord('needs', item.entityId, {
+          archiveStatus: 'archived'
+        }, profile, 'Need Archived via Dashboard');
       } else if (item.type === 'revenue') {
-        // Dismiss/ignore revenue event
-        await updateDoc(doc(db, 'revenueEvents', item.entityId), {
-          status: 'dismissed',
-          updatedAt: new Date().toISOString()
-        });
+        // Archive/dismiss revenue - hide from active list
+        await updateLedgerRecord('revenueEvents', item.entityId, {
+          archiveStatus: 'archived'
+        }, profile, 'Revenue Archived via Dashboard');
       }
       // Refresh data
       const [users, quests, needs, revenue] = await Promise.all([
