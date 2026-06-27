@@ -96,21 +96,23 @@ export function MembersPage() {
         });
         setCounts(roleCounts);
 
-        // Filter by jurisdiction in memory - but staff can see their city and also all members
+        // Filter by jurisdiction and role - receptionist only sees members, not staff
         let membersToSet = allUsers;
         const isAdmin = ['guildFounder', 'centralGuildMaster', 'founder'].includes(profile.role);
         const isStateAdmin = profile.role === 'stateGuildMaster';
-        const isCityStaff = ['receptionist', 'cityGuildMaster'].includes(profile.role);
+        const isReceptionist = profile.role === 'receptionist';
 
-        if (!isAdmin && !isStateAdmin && isCityStaff) {
-          // Staff users see their city users PLUS all members (not staff) - for managing member submissions
+        if (isReceptionist) {
+          // Receptionists only see non-staff members, never other staff
+          membersToSet = allUsers.filter((u: any) => u.role === 'member' || u.role === 'contributor');
+        } else if (!isAdmin && !isStateAdmin) {
+          // cityGuildMaster: show their city + all members
           membersToSet = allUsers.filter((u: any) => {
-            // Always show non-staff members (role: member or contributor)
             if (u.role === 'member' || u.role === 'contributor') return true;
-            // Show same city staff
             return u.jurisdiction?.cityId === profile.jurisdiction.cityId;
           });
         } else if (isStateAdmin) {
+          // State GM: show their state + all members
           membersToSet = allUsers.filter((u: any) => u.jurisdiction?.stateId === profile.jurisdiction.stateId || u.role === 'member' || u.role === 'contributor');
         }
 
